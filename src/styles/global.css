@@ -68,3 +68,34 @@ input, textarea, select {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #DDD; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #BBB; }
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  /* Força grids de 2 colunas para 1 coluna */
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="gridTemplateColumns: '1fr 1fr'"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Padding reduzido nas páginas */
+  [style*="padding: 32px"] {
+    padding: 16px !important;
+  }
+
+  /* Tabs com scroll horizontal */
+  [style*="display: flex"][style*="overflow: hidden"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Anamnese grid para coluna única */
+  [style*="grid-template-columns: 180px 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Login: empilha painéis */
+  [style*="width: '45%'"] {
+    width: 100% !important;
+    min-height: 200px !important;
+  }
+}

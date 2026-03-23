@@ -26,7 +26,35 @@ const navItems = [
   },
 ];
 
+const allItems = navItems.flatMap(g => g.items);
+const bottomItems = [
+  { id: 'dashboard', label: 'Início', icon: <GridIcon /> },
+  { id: 'agenda', label: 'Agenda', icon: <CalendarIcon /> },
+  { id: 'prontuario', label: 'Prontuário', icon: <FileIcon /> },
+  { id: 'financeiro', label: 'Financeiro', icon: <DollarIcon /> },
+  { id: 'pacientes', label: 'Pacientes', icon: <UserIcon /> },
+];
+
 export default function Sidebar({ currentPage, onNavigate }) {
+  const isMobile = window.innerWidth <= 768;
+
+  if (isMobile) {
+    return (
+      <nav style={styles.bottomNav}>
+        {bottomItems.map(item => (
+          <button
+            key={item.id}
+            style={{ ...styles.bottomItem, ...(currentPage === item.id ? styles.bottomItemActive : {}) }}
+            onClick={() => onNavigate(item.id)}
+          >
+            <span style={{ display: 'flex', justifyContent: 'center' }}>{item.icon}</span>
+            <span style={styles.bottomLabel}>{item.label}</span>
+          </button>
+        ))}
+      </nav>
+    );
+  }
+
   return (
     <aside style={styles.sidebar}>
       {/* Brand */}
@@ -216,4 +244,17 @@ const styles = {
   },
   userName: { fontSize: 12, color: '#fff' },
   userRole: { fontSize: 10, color: 'rgba(255,255,255,0.35)' },
+  bottomNav: {
+    position: 'fixed', bottom: 0, left: 0, right: 0,
+    background: '#1A1A1A', display: 'flex', zIndex: 100,
+    borderTop: '1px solid rgba(255,255,255,0.08)',
+    paddingBottom: 'env(safe-area-inset-bottom)',
+  },
+  bottomItem: {
+    flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+    gap: 3, padding: '10px 4px', background: 'transparent', border: 'none',
+    color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+  },
+  bottomItemActive: { color: '#A8D5C2' },
+  bottomLabel: { fontSize: 10, letterSpacing: '0.2px' },
 };

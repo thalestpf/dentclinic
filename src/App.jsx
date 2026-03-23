@@ -29,10 +29,15 @@ export default function App() {
     }
   };
 
+  const isMobile = window.innerWidth <= 768;
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
-      {renderPage()}
+      {!isMobile && <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />}
+      <div style={{ flex: 1, paddingBottom: isMobile ? 64 : 0, minWidth: 0 }}>
+        {renderPage()}
+      </div>
+      {isMobile && <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />}
     </div>
   );
 }
