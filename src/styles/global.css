@@ -1,0 +1,70 @@
+/* ================================
+   DentClinic — Global Styles
+   ================================ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --font-display: 'DM Serif Display', serif;
+  --font-body: 'DM Sans', sans-serif;
+
+  --color-bg: #F7F5F2;
+  --color-sidebar: #1A1A1A;
+  --color-white: #ffffff;
+  --color-accent: #A8D5C2;
+  --color-accent-light: #E8F4F0;
+
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #555555;
+  --color-text-muted: #888888;
+  --color-text-faint: #AAAAAA;
+
+  --color-border: #EFEFEF;
+  --color-border-hover: #1A1A1A;
+  --color-bg-hover: #FAFAFA;
+  --color-bg-subtle: #F5F5F5;
+
+  --color-success: #27AE60;
+  --color-success-bg: #E8F5E9;
+  --color-warning: #F39C12;
+  --color-warning-bg: #FFF9E6;
+  --color-danger: #E74C3C;
+  --color-danger-bg: #FDECEA;
+  --color-info: #185FA5;
+  --color-info-bg: #E6F1FB;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font-family: var(--font-body);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #DDD; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #BBB; }
