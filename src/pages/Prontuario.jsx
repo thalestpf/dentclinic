@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardTitle, PageHeader, Button, Badge } from '../components/UI';
 
+/* ── Tooth data ── */
 const initialTeeth = [
   {n:'18',s:'ok'},{n:'17',s:'ok'},{n:'16',s:'restored'},{n:'15',s:'ok'},{n:'14',s:'cavity'},{n:'13',s:'ok'},{n:'12',s:'ok'},{n:'11',s:'cavity'},
   {n:'21',s:'ok'},{n:'22',s:'ok'},{n:'23',s:'ok'},{n:'24',s:'ok'},{n:'25',s:'ok'},{n:'26',s:'restored'},{n:'27',s:'ok'},{n:'28',s:'missing'},
@@ -8,37 +9,190 @@ const initialTeeth = [
   {n:'41',s:'ok'},{n:'42',s:'ok'},{n:'43',s:'ok'},{n:'44',s:'ok'},{n:'45',s:'cavity'},{n:'46',s:'ok'},{n:'47',s:'ok'},{n:'48',s:'missing'},
 ];
 
-const toothStyles = {
-  ok:        { background: '#E8F5E9', border: '1.5px solid #A8D5C2' },
-  cavity:    { background: '#FFF3CD', border: '1.5px solid #F39C12' },
-  restored:  { background: '#D1ECF1', border: '1.5px solid #17A2B8' },
-  missing:   { background: '#F8D7DA', border: '1.5px solid #E74C3C', opacity: 0.6 },
-  fracture:  { background: '#FFE8D6', border: '1.5px solid #E67E22' },
-  prosthesis:{ background: '#EDE7F6', border: '1.5px solid #7B1FA2' },
-  crown:     { background: '#E3F2FD', border: '1.5px solid #1565C0' },
-  partial:   { background: '#E8EAF6', border: '1.5px solid #3949AB' },
-  implant:   { background: '#E0F7FA', border: '1.5px solid #00838F' },
-  tartar:    { background: '#F5F5DC', border: '1.5px solid #8D6E63' },
+const toothFill = {
+  ok:         '#E8F5E9', cavity:    '#FFF3CD', restored:  '#D1ECF1',
+  missing:    '#F8D7DA', fracture:  '#FFE8D6', prosthesis:'#EDE7F6',
+  crown:      '#E3F2FD', partial:   '#E8EAF6', implant:   '#E0F7FA',
+  tartar:     '#F5F5DC',
 };
-
-const toothIcons = {
-  ok: '🦷', cavity: '⚠', restored: '🔵', missing: '✕',
-  fracture: '⚡', prosthesis: '👑', crown: '♛', partial: '◑', implant: '🔩', tartar: '●',
+const toothStroke = {
+  ok:         '#A8D5C2', cavity:    '#F39C12', restored:  '#17A2B8',
+  missing:    '#E74C3C', fracture:  '#E67E22', prosthesis:'#7B1FA2',
+  crown:      '#1565C0', partial:   '#3949AB', implant:   '#00838F',
+  tartar:     '#8D6E63',
 };
 
 const statusOptions = [
-  { key: 'ok',         label: 'Saudável',      color: '#A8D5C2' },
-  { key: 'cavity',     label: 'Cárie',          color: '#F39C12' },
-  { key: 'restored',   label: 'Restaurado',     color: '#17A2B8' },
-  { key: 'missing',    label: 'Ausente',        color: '#E74C3C' },
-  { key: 'fracture',   label: 'Fratura',        color: '#E67E22' },
-  { key: 'prosthesis', label: 'Prótese',        color: '#7B1FA2' },
-  { key: 'crown',      label: 'Coroa total',    color: '#1565C0' },
-  { key: 'partial',    label: 'Coroa parcial',  color: '#3949AB' },
-  { key: 'implant',    label: 'Implante',       color: '#00838F' },
-  { key: 'tartar',     label: 'Tártaro',        color: '#8D6E63' },
+  { key: 'ok',         label: 'Saudável',     color: '#A8D5C2' },
+  { key: 'cavity',     label: 'Cárie',         color: '#F39C12' },
+  { key: 'restored',   label: 'Restaurado',    color: '#17A2B8' },
+  { key: 'missing',    label: 'Ausente',       color: '#E74C3C' },
+  { key: 'fracture',   label: 'Fratura',       color: '#E67E22' },
+  { key: 'prosthesis', label: 'Prótese',       color: '#7B1FA2' },
+  { key: 'crown',      label: 'Coroa total',   color: '#1565C0' },
+  { key: 'partial',    label: 'Coroa parcial', color: '#3949AB' },
+  { key: 'implant',    label: 'Implante',      color: '#00838F' },
+  { key: 'tartar',     label: 'Tártaro',       color: '#8D6E63' },
 ];
 
+/* ── Tooth type → shape dimensions ── */
+const toothType = (n) => {
+  const num = parseInt(n) % 10;
+  if (num === 8) return 'wisdom';
+  if (num === 7 || num === 6) return 'molar';
+  if (num === 5 || num === 4) return 'premolar';
+  if (num === 3) return 'canine';
+  return 'incisor';
+};
+
+const toothDims = {
+  wisdom:   { cw: 17, ch: 11, rw: 8,  rh: 11 },
+  molar:    { cw: 19, ch: 12, rw: 9,  rh: 12 },
+  premolar: { cw: 14, ch: 12, rw: 7,  rh: 12 },
+  canine:   { cw: 11, ch: 13, rw: 5,  rh: 15 },
+  incisor:  { cw: 13, ch: 11, rw: 6,  rh: 13 },
+};
+
+/* Molar cusp bumps on crown top edge */
+function CuspBumps({ cw, count }) {
+  const w = cw / count;
+  return Array.from({ length: count }).map((_, i) => (
+    <ellipse key={i} cx={-cw / 2 + w * i + w / 2} cy={0} rx={w * 0.28} ry={2.5}
+      fill="rgba(0,0,0,0.07)" />
+  ));
+}
+
+/* Single tooth SVG element (crown at +y, root at -y) */
+function ToothSVG({ tooth, selected, onClick }) {
+  const type = toothType(tooth.n);
+  const { cw, ch, rw, rh } = toothDims[type];
+  const fill = toothFill[tooth.s] || '#E8F5E9';
+  const stroke = toothStroke[tooth.s] || '#A8D5C2';
+  const sw = selected ? 2.5 : 1.5;
+  const opacity = tooth.s === 'missing' ? 0.55 : 1;
+  const cuspCount = type === 'molar' || type === 'wisdom' ? 4 : type === 'premolar' ? 2 : 0;
+
+  return (
+    <g onClick={onClick} style={{ cursor: 'pointer' }} opacity={opacity}>
+      {/* Root */}
+      <rect x={-rw / 2} y={-rh} width={rw} height={rh + 2} rx={rw / 2.5}
+        fill="#F0EBE3" stroke="#D8CFC6" strokeWidth={1} />
+      {/* Crown */}
+      <rect x={-cw / 2} y={0} width={cw} height={ch} rx={3.5}
+        fill={fill} stroke={stroke} strokeWidth={sw} />
+      {cuspCount > 0 && <CuspBumps cw={cw} count={cuspCount} />}
+      {/* Selected ring */}
+      {selected && (
+        <rect x={-cw / 2 - 2} y={-2} width={cw + 4} height={ch + 4} rx={5}
+          fill="none" stroke="#1A1A1A" strokeWidth={2} strokeDasharray="3,2" />
+      )}
+    </g>
+  );
+}
+
+/* ── Arch SVG odontogram ── */
+const CX = 280, CY = 240;
+const U_RX = 225, U_RY = 148; // upper arch radii
+const L_RX = 188, L_RY = 118; // lower arch radii
+
+const upperOrder = ['18','17','16','15','14','13','12','11','21','22','23','24','25','26','27','28'];
+const lowerOrder = ['48','47','46','45','44','43','42','41','31','32','33','34','35','36','37','38'];
+
+function archPos(i, total, rx, ry, startDeg, endDeg) {
+  const deg = startDeg + (endDeg - startDeg) * i / (total - 1);
+  const rad = deg * Math.PI / 180;
+  return { x: CX + rx * Math.cos(rad), y: CY + ry * Math.sin(rad), deg };
+}
+
+function toothRotation(x, y) {
+  // rotate crown (+y) toward arch center
+  return Math.atan2(CY - y, CX - x) * (180 / Math.PI) - 90;
+}
+
+function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
+  const toothMap = Object.fromEntries(teeth.map(t => [t.n, t]));
+
+  const renderArch = (order, rx, ry, startDeg, endDeg, labelOffset) =>
+    order.map((n, i) => {
+      const { x, y } = archPos(i, order.length, rx, ry, startDeg, endDeg);
+      const rot = toothRotation(x, y);
+      const tooth = toothMap[n];
+      if (!tooth) return null;
+      const { rh } = toothDims[toothType(n)];
+      // label position: on the outside (root direction = opposite of crown)
+      const labelRad = (rot + 90 + 180) * Math.PI / 180;
+      const lx = x + Math.cos(labelRad) * (rh + 10);
+      const ly = y + Math.sin(labelRad) * (rh + 10);
+      return (
+        <g key={n} transform={`translate(${x},${y}) rotate(${rot})`}>
+          <ToothSVG tooth={tooth} selected={selectedTooth?.n === n}
+            onClick={(e) => { e.stopPropagation(); onToothClick(tooth); }} />
+          <text
+            transform={`rotate(${-rot}) translate(${lx - x},${ly - y})`}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize="8.5" fill="#999" fontFamily="DM Sans, sans-serif"
+          >{n}</text>
+        </g>
+      );
+    });
+
+  return (
+    <svg viewBox="0 0 560 460" style={{ width: '100%', maxHeight: 360, display: 'block' }}>
+      {/* Arch guide lines */}
+      <ellipse cx={CX} cy={CY} rx={U_RX} ry={U_RY} fill="none" stroke="#F0F0F0" strokeWidth="1" />
+      <ellipse cx={CX} cy={CY} rx={L_RX} ry={L_RY} fill="none" stroke="#F0F0F0" strokeWidth="1" />
+      {/* Midline */}
+      <line x1={CX} y1={60} x2={CX} y2={420} stroke="#EBEBEB" strokeWidth="1" strokeDasharray="5,4" />
+      {/* Quadrant labels */}
+      <text x={CX - 14} y={76} textAnchor="end" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q1</text>
+      <text x={CX + 14} y={76} textAnchor="start" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q2</text>
+      <text x={CX - 14} y={418} textAnchor="end" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q4</text>
+      <text x={CX + 14} y={418} textAnchor="start" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q3</text>
+      {/* Upper arch: θ from 208° to 332° */}
+      {renderArch(upperOrder, U_RX, U_RY, 208, 332)}
+      {/* Lower arch: θ from 28° to 152° */}
+      {renderArch(lowerOrder, L_RX, L_RY, 28, 152)}
+    </svg>
+  );
+}
+
+/* ── Status picker modal ── */
+function ToothModal({ tooth, onSelect, onClose }) {
+  if (!tooth) return null;
+  return (
+    <div style={m.overlay} onClick={onClose}>
+      <div style={m.modal} onClick={e => e.stopPropagation()}>
+        <div style={m.header}>
+          <span style={m.title}>Dente {tooth.n}</span>
+          <button style={m.closeBtn} onClick={onClose}>✕</button>
+        </div>
+        <div style={m.grid}>
+          {statusOptions.map(opt => (
+            <div key={opt.key}
+              style={{ ...m.option, ...(tooth.s === opt.key ? m.optionActive : {}) }}
+              onClick={() => onSelect(tooth.n, opt.key)}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: opt.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 12 }}>{opt.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const m = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 320, overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.18)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', borderBottom: '1px solid #F5F5F5' },
+  title: { fontFamily: "'DM Serif Display', serif", fontSize: 17 },
+  closeBtn: { background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', color: '#AAA' },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: 14 },
+  option: { display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #F0F0F0', cursor: 'pointer', background: '#FAFAFA' },
+  optionActive: { border: '1.5px solid #1A1A1A', background: '#F5F5F5', fontWeight: 500 },
+};
+
+/* ── Other page data ── */
 const plan = [
   { name: 'Limpeza profissional', price: 'R$150', done: true },
   { name: 'Restauração dente 36', price: 'R$280', done: true },
@@ -54,14 +208,11 @@ const evolution = [
 
 const tabs = ['Odontograma', 'Anamnese', 'Plano de tratamento', 'Evolução clínica', 'Documentos'];
 
+/* ── Main component ── */
 export default function Prontuario() {
   const [activeTab, setActiveTab] = useState('Odontograma');
   const [teeth, setTeeth] = useState(initialTeeth);
   const [selectedTooth, setSelectedTooth] = useState(null);
-
-  const handleToothClick = (tooth) => {
-    setSelectedTooth(tooth.n === selectedTooth?.n ? null : tooth);
-  };
 
   const setToothStatus = (n, status) => {
     setTeeth(prev => prev.map(t => t.n === n ? { ...t, s: status } : t));
@@ -99,52 +250,28 @@ export default function Prontuario() {
         ))}
       </div>
 
-      {/* Content */}
+      {/* ── Odontograma ── */}
       {activeTab === 'Odontograma' && (
-        <div style={s.grid2}>
-          <Card style={{ gridColumn: '1 / -1' }} onClick={() => setSelectedTooth(null)}>
-            <CardTitle>Odontograma <span style={{ fontSize: 11, color: '#AAA', fontWeight: 300 }}>— clique no dente para alterar</span></CardTitle>
-            <div style={s.odonto}>
-              {teeth.map((t) => (
-                <div key={t.n} style={{ position: 'relative' }}>
-                  <div
-                    style={{ ...s.tooth, ...toothStyles[t.s], ...(selectedTooth?.n === t.n ? { outline: '2px solid #1A1A1A' } : {}) }}
-                    title={`Dente ${t.n}`}
-                    onClick={e => { e.stopPropagation(); handleToothClick(t); }}
-                  >
-                    <span style={{ fontSize: 9, color: '#AAA', display: 'block' }}>{t.n}</span>
-                    <span style={{ fontSize: 13 }}>{toothIcons[t.s]}</span>
-                  </div>
-                  {selectedTooth?.n === t.n && (
-                    <div style={s.popover} onClick={e => e.stopPropagation()}>
-                      <div style={s.popoverTitle}>Dente {t.n}</div>
-                      {statusOptions.map(opt => (
-                        <div
-                          key={opt.key}
-                          style={{ ...s.popoverItem, ...(t.s === opt.key ? s.popoverItemActive : {}) }}
-                          onClick={() => setToothStatus(t.n, opt.key)}
-                        >
-                          <div style={{ width: 8, height: 8, borderRadius: 2, background: opt.color, flexShrink: 0 }} />
-                          {opt.label}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div style={s.legend}>
-              {statusOptions.map(opt => (
-                <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#888' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: opt.color }} />
-                  {opt.label}
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
+        <Card>
+          <CardTitle>
+            Odontograma
+            <span style={{ fontSize: 11, color: '#AAA', fontWeight: 300, marginLeft: 8 }}>clique no dente para alterar</span>
+          </CardTitle>
+          <OdontogramaSVG teeth={teeth} selectedTooth={selectedTooth}
+            onToothClick={t => setSelectedTooth(prev => prev?.n === t.n ? null : t)} />
+          {/* Legend */}
+          <div style={s.legend}>
+            {statusOptions.map(opt => (
+              <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#777' }}>
+                <div style={{ width: 9, height: 9, borderRadius: 2, background: opt.color }} />
+                {opt.label}
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
+      {/* ── Anamnese ── */}
       {activeTab === 'Anamnese' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Card>
@@ -182,6 +309,7 @@ export default function Prontuario() {
         </div>
       )}
 
+      {/* ── Plano de tratamento ── */}
       {activeTab === 'Plano de tratamento' && (
         <Card>
           <CardTitle action="+ Adicionar">Plano de tratamento</CardTitle>
@@ -197,17 +325,18 @@ export default function Prontuario() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 20, padding: '14px 16px', background: '#FAFAFA', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ marginTop: 20, padding: '14px 16px', background: '#FAFAFA', borderRadius: 10, display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, color: '#888' }}>Total do tratamento</span>
             <span style={{ fontSize: 16, fontWeight: 500 }}>R$ 1.930</span>
           </div>
-          <div style={{ marginTop: 8, padding: '14px 16px', background: '#F0FBF6', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ marginTop: 8, padding: '14px 16px', background: '#F0FBF6', borderRadius: 10, display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, color: '#27AE60' }}>Já realizado</span>
             <span style={{ fontSize: 16, fontWeight: 500, color: '#27AE60' }}>R$ 430</span>
           </div>
         </Card>
       )}
 
+      {/* ── Evolução clínica ── */}
       {activeTab === 'Evolução clínica' && (
         <Card>
           <CardTitle action="+ Nova evolução">Evolução clínica</CardTitle>
@@ -226,6 +355,7 @@ export default function Prontuario() {
         </Card>
       )}
 
+      {/* ── Documentos ── */}
       {activeTab === 'Documentos' && (
         <Card>
           <CardTitle action="+ Enviar documento">Documentos</CardTitle>
@@ -248,6 +378,9 @@ export default function Prontuario() {
           </div>
         </Card>
       )}
+
+      {/* Tooth status modal */}
+      <ToothModal tooth={selectedTooth} onSelect={setToothStatus} onClose={() => setSelectedTooth(null)} />
     </div>
   );
 }
@@ -261,10 +394,7 @@ const s = {
   tabs: { display: 'flex', background: '#fff', borderRadius: 12, border: '1.5px solid #EFEFEF', overflow: 'hidden' },
   tab: { padding: '13px 20px', fontSize: 13, cursor: 'pointer', color: '#888', borderBottom: '2px solid transparent', transition: 'all 0.15s', whiteSpace: 'nowrap' },
   tabActive: { color: '#1A1A1A', fontWeight: 500, borderBottomColor: '#1A1A1A' },
-  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  odonto: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4, marginBottom: 8, marginTop: 12 },
-  tooth: { borderRadius: 6, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' },
-  legend: { display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 },
+  legend: { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid #F5F5F5' },
   planItem: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: '#FAFAFA' },
   planCheck: { width: 18, height: 18, borderRadius: '50%', border: '1.5px solid #DDD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   planCheckDone: { background: '#27AE60', borderColor: '#27AE60' },
@@ -279,8 +409,4 @@ const s = {
   docItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, background: '#FAFAFA' },
   docIcon: { fontSize: 22, width: 36, textAlign: 'center' },
   docBtn: { padding: '6px 14px', border: '1.5px solid #EFEFEF', borderRadius: 8, background: '#fff', fontSize: 12, color: '#555', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
-  popover: { position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: '#fff', border: '1.5px solid #EFEFEF', borderRadius: 10, padding: '8px 0', minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4 },
-  popoverTitle: { fontSize: 10, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.6px', padding: '0 12px 6px', borderBottom: '1px solid #F5F5F5', marginBottom: 4 },
-  popoverItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: 12, color: '#333', cursor: 'pointer' },
-  popoverItemActive: { background: '#F5F5F5', fontWeight: 500 },
 };
