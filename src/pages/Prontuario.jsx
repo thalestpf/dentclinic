@@ -35,7 +35,7 @@ const statusOptions = [
   { key: 'tartar',     label: 'Tártaro',       color: '#8D6E63' },
 ];
 
-/* ── Tooth type → shape dimensions ── */
+/* ── Tooth type ── */
 const toothType = (n) => {
   const num = parseInt(n) % 10;
   if (num === 8) return 'wisdom';
@@ -45,46 +45,59 @@ const toothType = (n) => {
   return 'incisor';
 };
 
-const toothDims = {
-  wisdom:   { cw: 17, ch: 11, rw: 8,  rh: 11 },
-  molar:    { cw: 19, ch: 12, rw: 9,  rh: 12 },
-  premolar: { cw: 14, ch: 12, rw: 7,  rh: 12 },
-  canine:   { cw: 11, ch: 13, rw: 5,  rh: 15 },
-  incisor:  { cw: 13, ch: 11, rw: 6,  rh: 13 },
+/* ── Tooth shapes as SVG paths  (crown at +y, root at -y) ── */
+const SHAPES = {
+  incisor: {
+    root: 'M -4,0 C -4.5,-5 -4.5,-13 -3,-18 C -1.5,-21 1.5,-21 3,-18 C 4.5,-13 4.5,-5 4,0 Z',
+    crown: 'M -5.5,0 C -6,2 -7,6 -6.5,11 C -4,14 4,14 6.5,11 C 7,6 6,2 5.5,0 Z',
+    fissure: null,
+  },
+  canine: {
+    root: 'M -3.5,0 C -4,-6 -4,-14 -2.5,-20 C -1.5,-23 1.5,-23 2.5,-20 C 4,-14 4,-6 3.5,0 Z',
+    crown: 'M -5,0 C -5.5,2 -6,5 -4,10 C -2,14 0,16 2,14 C 4,10 6,5 5,0 Z',
+    fissure: null,
+  },
+  premolar: {
+    root: 'M -4.5,0 C -5,-5 -5,-12 -3.5,-17 C -2,-19 2,-19 3.5,-17 C 5,-12 5,-5 4.5,0 Z',
+    crown: 'M -7,0 C -8,2 -8.5,6 -8,11 C -5,13 5,13 8,11 C 8.5,6 8,2 7,0 Z',
+    fissure: 'M 0,1 L 0,11',
+  },
+  molar: {
+    root: 'M -9,0 C -10,-3 -10,-9 -9,-13 C -7,-16 -5,-15 -5,-11 C -5,-7 -5,-4 -4,0 L 4,0 C 5,-4 5,-7 5,-11 C 5,-15 7,-16 9,-13 C 10,-9 10,-3 9,0 Z',
+    crown: 'M -9.5,0 C -10.5,2 -10.5,7 -10,12 C -6,15 6,15 10,12 C 10.5,7 10.5,2 9.5,0 Z',
+    fissure: 'M 0,1 L 0,12 M -5,6 L 5,6',
+  },
+  wisdom: {
+    root: 'M -8,0 C -9,-3 -9,-8 -8,-12 C -6,-15 -4,-14 -4,-10 C -4,-6 -3,-3 -2,0 L 2,0 C 3,-3 4,-6 4,-10 C 4,-14 6,-15 8,-12 C 9,-8 9,-3 8,0 Z',
+    crown: 'M -8.5,0 C -9.5,2 -9.5,6 -9,11 C -5,14 5,14 9,11 C 9.5,6 9.5,2 8.5,0 Z',
+    fissure: 'M 0,1 L 0,11 M -4,5 L 4,5',
+  },
 };
 
-/* Molar cusp bumps on crown top edge */
-function CuspBumps({ cw, count }) {
-  const w = cw / count;
-  return Array.from({ length: count }).map((_, i) => (
-    <ellipse key={i} cx={-cw / 2 + w * i + w / 2} cy={0} rx={w * 0.28} ry={2.5}
-      fill="rgba(0,0,0,0.07)" />
-  ));
-}
-
-/* Single tooth SVG element (crown at +y, root at -y) */
+/* Single tooth SVG element */
 function ToothSVG({ tooth, selected, onClick }) {
   const type = toothType(tooth.n);
-  const { cw, ch, rw, rh } = toothDims[type];
-  const fill = toothFill[tooth.s] || '#E8F5E9';
+  const sh = SHAPES[type];
+  const fill   = toothFill[tooth.s]   || '#E8F5E9';
   const stroke = toothStroke[tooth.s] || '#A8D5C2';
-  const sw = selected ? 2.5 : 1.5;
-  const opacity = tooth.s === 'missing' ? 0.55 : 1;
-  const cuspCount = type === 'molar' || type === 'wisdom' ? 4 : type === 'premolar' ? 2 : 0;
+  const opacity = tooth.s === 'missing' ? 0.45 : 1;
 
   return (
     <g onClick={onClick} style={{ cursor: 'pointer' }} opacity={opacity}>
       {/* Root */}
-      <rect x={-rw / 2} y={-rh} width={rw} height={rh + 2} rx={rw / 2.5}
-        fill="#F0EBE3" stroke="#D8CFC6" strokeWidth={1} />
+      <path d={sh.root} fill="#EDE8E0" stroke="#C8C0B4" strokeWidth="1" strokeLinejoin="round" />
       {/* Crown */}
-      <rect x={-cw / 2} y={0} width={cw} height={ch} rx={3.5}
-        fill={fill} stroke={stroke} strokeWidth={sw} />
-      {cuspCount > 0 && <CuspBumps cw={cw} count={cuspCount} />}
-      {/* Selected ring */}
+      <path d={sh.crown} fill={fill} stroke={stroke} strokeWidth={selected ? 2.5 : 1.5} strokeLinejoin="round" />
+      {/* Fissure lines */}
+      {sh.fissure && (
+        <path d={sh.fissure} fill="none" stroke={stroke} strokeWidth="0.8" opacity="0.5" />
+      )}
+      {/* CEJ line (cervical) */}
+      <line x1={-10} y1={0} x2={10} y2={0} stroke={stroke} strokeWidth="0.6" opacity="0.3" />
+      {/* Selected highlight */}
       {selected && (
-        <rect x={-cw / 2 - 2} y={-2} width={cw + 4} height={ch + 4} rx={5}
-          fill="none" stroke="#1A1A1A" strokeWidth={2} strokeDasharray="3,2" />
+        <path d={sh.crown} fill="none" stroke="#1A1A1A" strokeWidth="2.5"
+          strokeDasharray="3,2" strokeLinejoin="round" />
       )}
     </g>
   );
@@ -112,17 +125,19 @@ function toothRotation(x, y) {
 function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
   const toothMap = Object.fromEntries(teeth.map(t => [t.n, t]));
 
-  const renderArch = (order, rx, ry, startDeg, endDeg, labelOffset) =>
+  const rootDepth = { wisdom: 14, molar: 14, premolar: 18, canine: 22, incisor: 20 };
+
+  const renderArch = (order, rx, ry, startDeg, endDeg) =>
     order.map((n, i) => {
       const { x, y } = archPos(i, order.length, rx, ry, startDeg, endDeg);
       const rot = toothRotation(x, y);
       const tooth = toothMap[n];
       if (!tooth) return null;
-      const { rh } = toothDims[toothType(n)];
-      // label position: on the outside (root direction = opposite of crown)
-      const labelRad = (rot + 90 + 180) * Math.PI / 180;
-      const lx = x + Math.cos(labelRad) * (rh + 10);
-      const ly = y + Math.sin(labelRad) * (rh + 10);
+      const rd = rootDepth[toothType(n)] || 18;
+      // Number label: outside the arch (in root direction = -y local = opposite of crown)
+      const labelRad = (rot - 90) * Math.PI / 180;
+      const lx = x + Math.cos(labelRad) * (rd + 8);
+      const ly = y + Math.sin(labelRad) * (rd + 8);
       return (
         <g key={n} transform={`translate(${x},${y}) rotate(${rot})`}>
           <ToothSVG tooth={tooth} selected={selectedTooth?.n === n}
@@ -130,14 +145,14 @@ function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
           <text
             transform={`rotate(${-rot}) translate(${lx - x},${ly - y})`}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize="8.5" fill="#999" fontFamily="DM Sans, sans-serif"
+            fontSize="8" fill="#AAA" fontFamily="DM Sans, sans-serif"
           >{n}</text>
         </g>
       );
     });
 
   return (
-    <svg viewBox="0 0 560 460" style={{ width: '100%', maxHeight: 360, display: 'block' }}>
+    <svg viewBox="0 0 560 480" style={{ width: '100%', maxHeight: 400, display: 'block' }}>
       {/* Arch guide lines */}
       <ellipse cx={CX} cy={CY} rx={U_RX} ry={U_RY} fill="none" stroke="#F0F0F0" strokeWidth="1" />
       <ellipse cx={CX} cy={CY} rx={L_RX} ry={L_RY} fill="none" stroke="#F0F0F0" strokeWidth="1" />
