@@ -53,8 +53,30 @@ const miniDays = [
   { d: '30' }, { d: '31' },
 ];
 
+const apptDetails = {
+  'Ana Costa':     { age: '32 anos', phone: '(31) 98765-4321', proc: 'Limpeza profissional', dr: 'Dra. Silva', status: 'confirmado', notes: 'Trazer exames anteriores.' },
+  'Carlos Lima':   { age: '45 anos', phone: '(31) 97654-3210', proc: 'Tratamento de canal', dr: 'Dra. Silva', status: 'confirmado', notes: '' },
+  'Pedro Alves':   { age: '28 anos', phone: '(31) 96543-2109', proc: 'Ortodontia - ajuste', dr: 'Dr. Rocha', status: 'pendente', notes: 'Verificar aparelho inferior.' },
+  'Mariana Souza': { age: '38 anos', phone: '(31) 95432-1098', proc: 'Extração do siso', dr: 'Dra. Silva', status: 'confirmado', notes: 'Paciente ansiosa, considerar sedação.' },
+  'Rafael Gomes':  { age: '22 anos', phone: '(31) 94321-0987', proc: 'Limpeza', dr: 'Dra. Silva', status: 'pendente', notes: '' },
+  'Julia Mendes':  { age: '50 anos', phone: '(31) 93210-9876', proc: 'Implante - consulta', dr: 'Dr. Rocha', status: 'confirmado', notes: 'Aguardando resultado de exame de osso.' },
+  'Lucia Prado':   { age: '17 anos', phone: '(31) 92109-8765', proc: 'Aparelho - manutenção', dr: 'Dr. Rocha', status: 'confirmado', notes: '' },
+  'Tiago Rocha':   { age: '34 anos', phone: '(31) 91098-7654', proc: 'Clareamento dental', dr: 'Dra. Silva', status: 'pendente', notes: '' },
+  'Beatriz Neves': { age: '29 anos', phone: '(31) 90987-6543', proc: 'Revisão anual', dr: 'Dra. Silva', status: 'confirmado', notes: '' },
+  'Hugo Ferreira': { age: '41 anos', phone: '(31) 99876-5432', proc: 'Emergência - dor', dr: 'Dra. Silva', status: 'confirmado', notes: 'Dor intensa dente 45.' },
+  'Camila Torres': { age: '26 anos', phone: '(31) 98765-5432', proc: 'Limpeza', dr: 'Dra. Silva', status: 'confirmado', notes: '' },
+  'Daniel Castro': { age: '55 anos', phone: '(31) 97654-4321', proc: 'Tratamento de canal', dr: 'Dr. Rocha', status: 'pendente', notes: '' },
+  'Isabela Lopes': { age: '19 anos', phone: '(31) 96543-3210', proc: 'Ortodontia - início', dr: 'Dr. Rocha', status: 'confirmado', notes: 'Primeira consulta de aparelho.' },
+};
+
+const statusColors = {
+  confirmado: { background: '#E8F5E9', color: '#27AE60' },
+  pendente:   { background: '#FFF9E6', color: '#F39C12' },
+};
+
 export default function Agenda() {
   const [view, setView] = useState('Semana');
+  const [selected, setSelected] = useState(null);
 
   return (
     <div style={s.main}>
@@ -100,7 +122,7 @@ export default function Agenda() {
                 <div key={di} style={s.dayColBody}>
                   {hours.map(h => <div key={h} style={s.hourLine} />)}
                   {appts.filter(a => a.day === di).map((a, ai) => (
-                    <div key={ai} style={{ ...s.apptBlock, ...blockColors[a.color], top: a.top, height: a.h }}>
+                    <div key={ai} style={{ ...s.apptBlock, ...blockColors[a.color], top: a.top, height: a.h }} onClick={() => setSelected(a)}>
                       <div style={s.apptName}>{a.name}</div>
                       <div style={s.apptProc}>{a.proc}</div>
                     </div>
@@ -139,6 +161,62 @@ export default function Agenda() {
           </Card>
         </div>
       </div>
+      {/* Modal */}
+      {selected && (() => {
+        const d = apptDetails[selected.name] || {};
+        return (
+          <div style={s.overlay} onClick={() => setSelected(null)}>
+            <div style={s.modal} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div style={{ ...s.modalHeader, ...blockColors[selected.color] }}>
+                <div>
+                  <div style={s.modalName}>{selected.name}</div>
+                  <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>{selected.proc}</div>
+                </div>
+                <button style={s.closeBtn} onClick={() => setSelected(null)}>✕</button>
+              </div>
+
+              {/* Info */}
+              <div style={s.modalBody}>
+                <div style={s.infoGrid}>
+                  {[
+                    ['Procedimento', d.proc],
+                    ['Dentista', d.dr],
+                    ['Idade', d.age],
+                    ['Telefone', d.phone],
+                  ].map(([label, val]) => (
+                    <div key={label}>
+                      <div style={s.infoLabel}>{label}</div>
+                      <div style={s.infoVal}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Status */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                  <span style={s.infoLabel}>Status</span>
+                  <span style={{ ...s.statusBadge, ...statusColors[d.status] }}>{d.status}</span>
+                </div>
+
+                {/* Notes */}
+                {d.notes ? (
+                  <div style={s.notes}>
+                    <div style={s.infoLabel}>Observações</div>
+                    <div style={{ fontSize: 13, color: '#555', marginTop: 4, lineHeight: 1.5 }}>{d.notes}</div>
+                  </div>
+                ) : null}
+
+                {/* Actions */}
+                <div style={s.actions}>
+                  <button style={s.actionBtn}>Abrir prontuário</button>
+                  <button style={s.actionBtn}>Confirmar</button>
+                  <button style={{ ...s.actionBtn, ...s.actionBtnDanger }}>Cancelar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -170,4 +248,18 @@ const s = {
   miniDay: { fontSize: 11, padding: '4px 2px', borderRadius: 4, cursor: 'pointer', color: '#555', position: 'relative' },
   miniToday: { background: '#1A1A1A', color: '#fff', borderRadius: '50%' },
   miniDot: { position: 'absolute', bottom: 1, left: '50%', transform: 'translateX(-50%)', width: 3, height: 3, borderRadius: '50%', background: '#A8D5C2' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  modal: { background: '#fff', borderRadius: 16, width: '100%', maxWidth: 380, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
+  modalHeader: { padding: '20px 20px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
+  modalName: { fontSize: 17, fontWeight: 600, fontFamily: "'DM Serif Display', serif" },
+  closeBtn: { background: 'transparent', border: 'none', fontSize: 14, cursor: 'pointer', opacity: 0.6, padding: 4 },
+  modalBody: { padding: '16px 20px 20px' },
+  infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
+  infoLabel: { fontSize: 10, fontWeight: 500, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 2 },
+  infoVal: { fontSize: 13, color: '#1A1A1A' },
+  statusBadge: { padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500, textTransform: 'capitalize' },
+  notes: { marginTop: 14, padding: 12, background: '#FAFAFA', borderRadius: 8 },
+  actions: { display: 'flex', gap: 8, marginTop: 20 },
+  actionBtn: { flex: 1, padding: '10px 8px', border: '1.5px solid #E8E8E8', borderRadius: 10, background: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", color: '#1A1A1A' },
+  actionBtnDanger: { color: '#E74C3C', borderColor: '#FDECEA', background: '#FDECEA' },
 };

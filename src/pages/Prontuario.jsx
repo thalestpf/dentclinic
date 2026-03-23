@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardTitle, PageHeader, Button, Badge } from '../components/UI';
 
-const teeth = [
+const initialTeeth = [
   {n:'18',s:'ok'},{n:'17',s:'ok'},{n:'16',s:'restored'},{n:'15',s:'ok'},{n:'14',s:'cavity'},{n:'13',s:'ok'},{n:'12',s:'ok'},{n:'11',s:'cavity'},
   {n:'21',s:'ok'},{n:'22',s:'ok'},{n:'23',s:'ok'},{n:'24',s:'ok'},{n:'25',s:'ok'},{n:'26',s:'restored'},{n:'27',s:'ok'},{n:'28',s:'missing'},
   {n:'38',s:'missing'},{n:'37',s:'ok'},{n:'36',s:'restored'},{n:'35',s:'ok'},{n:'34',s:'ok'},{n:'33',s:'ok'},{n:'32',s:'ok'},{n:'31',s:'ok'},
@@ -9,13 +9,35 @@ const teeth = [
 ];
 
 const toothStyles = {
-  ok:       { background: '#E8F5E9', border: '1.5px solid #A8D5C2' },
-  cavity:   { background: '#FFF3CD', border: '1.5px solid #F39C12' },
-  restored: { background: '#D1ECF1', border: '1.5px solid #17A2B8' },
-  missing:  { background: '#F8D7DA', border: '1.5px solid #E74C3C', opacity: 0.6 },
+  ok:        { background: '#E8F5E9', border: '1.5px solid #A8D5C2' },
+  cavity:    { background: '#FFF3CD', border: '1.5px solid #F39C12' },
+  restored:  { background: '#D1ECF1', border: '1.5px solid #17A2B8' },
+  missing:   { background: '#F8D7DA', border: '1.5px solid #E74C3C', opacity: 0.6 },
+  fracture:  { background: '#FFE8D6', border: '1.5px solid #E67E22' },
+  prosthesis:{ background: '#EDE7F6', border: '1.5px solid #7B1FA2' },
+  crown:     { background: '#E3F2FD', border: '1.5px solid #1565C0' },
+  partial:   { background: '#E8EAF6', border: '1.5px solid #3949AB' },
+  implant:   { background: '#E0F7FA', border: '1.5px solid #00838F' },
+  tartar:    { background: '#F5F5DC', border: '1.5px solid #8D6E63' },
 };
 
-const toothIcons = { ok: '🦷', cavity: '⚠', restored: '🔵', missing: '✕' };
+const toothIcons = {
+  ok: '🦷', cavity: '⚠', restored: '🔵', missing: '✕',
+  fracture: '⚡', prosthesis: '👑', crown: '♛', partial: '◑', implant: '🔩', tartar: '●',
+};
+
+const statusOptions = [
+  { key: 'ok',         label: 'Saudável',      color: '#A8D5C2' },
+  { key: 'cavity',     label: 'Cárie',          color: '#F39C12' },
+  { key: 'restored',   label: 'Restaurado',     color: '#17A2B8' },
+  { key: 'missing',    label: 'Ausente',        color: '#E74C3C' },
+  { key: 'fracture',   label: 'Fratura',        color: '#E67E22' },
+  { key: 'prosthesis', label: 'Prótese',        color: '#7B1FA2' },
+  { key: 'crown',      label: 'Coroa total',    color: '#1565C0' },
+  { key: 'partial',    label: 'Coroa parcial',  color: '#3949AB' },
+  { key: 'implant',    label: 'Implante',       color: '#00838F' },
+  { key: 'tartar',     label: 'Tártaro',        color: '#8D6E63' },
+];
 
 const plan = [
   { name: 'Limpeza profissional', price: 'R$150', done: true },
@@ -34,6 +56,17 @@ const tabs = ['Odontograma', 'Anamnese', 'Plano de tratamento', 'Evolução clí
 
 export default function Prontuario() {
   const [activeTab, setActiveTab] = useState('Odontograma');
+  const [teeth, setTeeth] = useState(initialTeeth);
+  const [selectedTooth, setSelectedTooth] = useState(null);
+
+  const handleToothClick = (tooth) => {
+    setSelectedTooth(tooth.n === selectedTooth?.n ? null : tooth);
+  };
+
+  const setToothStatus = (n, status) => {
+    setTeeth(prev => prev.map(t => t.n === n ? { ...t, s: status } : t));
+    setSelectedTooth(null);
+  };
 
   return (
     <div style={s.main}>
@@ -69,21 +102,42 @@ export default function Prontuario() {
       {/* Content */}
       {activeTab === 'Odontograma' && (
         <div style={s.grid2}>
-          <Card style={{ gridColumn: '1 / -1' }}>
-            <CardTitle action="Editar">Odontograma</CardTitle>
+          <Card style={{ gridColumn: '1 / -1' }} onClick={() => setSelectedTooth(null)}>
+            <CardTitle>Odontograma <span style={{ fontSize: 11, color: '#AAA', fontWeight: 300 }}>— clique no dente para alterar</span></CardTitle>
             <div style={s.odonto}>
               {teeth.map((t) => (
-                <div key={t.n} style={{ ...s.tooth, ...toothStyles[t.s] }} title={`Dente ${t.n}`}>
-                  <span style={{ fontSize: 9, color: '#AAA', display: 'block' }}>{t.n}</span>
-                  <span style={{ fontSize: 13 }}>{toothIcons[t.s]}</span>
+                <div key={t.n} style={{ position: 'relative' }}>
+                  <div
+                    style={{ ...s.tooth, ...toothStyles[t.s], ...(selectedTooth?.n === t.n ? { outline: '2px solid #1A1A1A' } : {}) }}
+                    title={`Dente ${t.n}`}
+                    onClick={e => { e.stopPropagation(); handleToothClick(t); }}
+                  >
+                    <span style={{ fontSize: 9, color: '#AAA', display: 'block' }}>{t.n}</span>
+                    <span style={{ fontSize: 13 }}>{toothIcons[t.s]}</span>
+                  </div>
+                  {selectedTooth?.n === t.n && (
+                    <div style={s.popover} onClick={e => e.stopPropagation()}>
+                      <div style={s.popoverTitle}>Dente {t.n}</div>
+                      {statusOptions.map(opt => (
+                        <div
+                          key={opt.key}
+                          style={{ ...s.popoverItem, ...(t.s === opt.key ? s.popoverItemActive : {}) }}
+                          onClick={() => setToothStatus(t.n, opt.key)}
+                        >
+                          <div style={{ width: 8, height: 8, borderRadius: 2, background: opt.color, flexShrink: 0 }} />
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
             <div style={s.legend}>
-              {[['#A8D5C2','Saudável'], ['#F39C12','Cárie'], ['#17A2B8','Restaurado'], ['#E74C3C','Ausente']].map(([color, label]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#888' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
-                  {label}
+              {statusOptions.map(opt => (
+                <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#888' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: opt.color }} />
+                  {opt.label}
                 </div>
               ))}
             </div>
@@ -225,4 +279,8 @@ const s = {
   docItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, background: '#FAFAFA' },
   docIcon: { fontSize: 22, width: 36, textAlign: 'center' },
   docBtn: { padding: '6px 14px', border: '1.5px solid #EFEFEF', borderRadius: 8, background: '#fff', fontSize: 12, color: '#555', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
+  popover: { position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: '#fff', border: '1.5px solid #EFEFEF', borderRadius: 10, padding: '8px 0', minWidth: 140, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4 },
+  popoverTitle: { fontSize: 10, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.6px', padding: '0 12px 6px', borderBottom: '1px solid #F5F5F5', marginBottom: 4 },
+  popoverItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: 12, color: '#333', cursor: 'pointer' },
+  popoverItemActive: { background: '#F5F5F5', fontWeight: 500 },
 };
