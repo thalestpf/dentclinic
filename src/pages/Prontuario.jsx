@@ -45,68 +45,116 @@ const toothType = (n) => {
   return 'incisor';
 };
 
-/* ── Tooth shapes as SVG paths  (crown at +y, root at -y) ── */
-const SHAPES = {
-  incisor: {
-    root: 'M -4,0 C -4.5,-5 -4.5,-13 -3,-18 C -1.5,-21 1.5,-21 3,-18 C 4.5,-13 4.5,-5 4,0 Z',
-    crown: 'M -5.5,0 C -6,2 -7,6 -6.5,11 C -4,14 4,14 6.5,11 C 7,6 6,2 5.5,0 Z',
-    fissure: null,
-  },
-  canine: {
-    root: 'M -3.5,0 C -4,-6 -4,-14 -2.5,-20 C -1.5,-23 1.5,-23 2.5,-20 C 4,-14 4,-6 3.5,0 Z',
-    crown: 'M -5,0 C -5.5,2 -6,5 -4,10 C -2,14 0,16 2,14 C 4,10 6,5 5,0 Z',
-    fissure: null,
-  },
-  premolar: {
-    root: 'M -4.5,0 C -5,-5 -5,-12 -3.5,-17 C -2,-19 2,-19 3.5,-17 C 5,-12 5,-5 4.5,0 Z',
-    crown: 'M -7,0 C -8,2 -8.5,6 -8,11 C -5,13 5,13 8,11 C 8.5,6 8,2 7,0 Z',
-    fissure: 'M 0,1 L 0,11',
-  },
-  molar: {
-    root: 'M -9,0 C -10,-3 -10,-9 -9,-13 C -7,-16 -5,-15 -5,-11 C -5,-7 -5,-4 -4,0 L 4,0 C 5,-4 5,-7 5,-11 C 5,-15 7,-16 9,-13 C 10,-9 10,-3 9,0 Z',
-    crown: 'M -9.5,0 C -10.5,2 -10.5,7 -10,12 C -6,15 6,15 10,12 C 10.5,7 10.5,2 9.5,0 Z',
-    fissure: 'M 0,1 L 0,12 M -5,6 L 5,6',
-  },
-  wisdom: {
-    root: 'M -8,0 C -9,-3 -9,-8 -8,-12 C -6,-15 -4,-14 -4,-10 C -4,-6 -3,-3 -2,0 L 2,0 C 3,-3 4,-6 4,-10 C 4,-14 6,-15 8,-12 C 9,-8 9,-3 8,0 Z',
-    crown: 'M -8.5,0 C -9.5,2 -9.5,6 -9,11 C -5,14 5,14 9,11 C 9.5,6 9.5,2 8.5,0 Z',
-    fissure: 'M 0,1 L 0,11 M -4,5 L 4,5',
-  },
+/*
+  ── Anatomical SVG tooth paths ──
+  Coordinate system: crown at +y (toward center of mouth), root at -y (outward)
+  Designed to resemble real buccal-view dental diagrams.
+*/
+const TEETH_SVG = {
+  incisor: (fill, stroke, sw) => (
+    <>
+      {/* Single root - tapered, slightly curved */}
+      <path d="M -4.5,0 C -5,-4 -5,-11 -3.5,-17 C -2.5,-20 -1,-21.5 0,-21.5 C 1,-21.5 2.5,-20 3.5,-17 C 5,-11 5,-4 4.5,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Crown - trapezoidal, wider at incisal */}
+      <path d="M -5.5,0 C -6.5,1 -7.5,5 -7,10 C -6.5,13 -3,15 0,15 C 3,15 6.5,13 7,10 C 7.5,5 6.5,1 5.5,0 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw} />
+      {/* Incisal edge subtle line */}
+      <path d="M -7,10 Q 0,16 7,10" fill="none" stroke={stroke} strokeWidth="0.7" opacity="0.5" />
+    </>
+  ),
+
+  canine: (fill, stroke, sw) => (
+    <>
+      {/* Root - long single, gently tapered */}
+      <path d="M -3.5,0 C -4,-5 -4,-13 -2.5,-20 C -1.5,-24 -0.5,-25 0,-25 C 0.5,-25 1.5,-24 2.5,-20 C 4,-13 4,-5 3.5,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Crown - pointed cusp, canine shape */}
+      <path d="M -5,0 C -6,1.5 -6.5,5 -5,10 C -3.5,14 -1.5,17 0,18 C 1.5,17 3.5,14 5,10 C 6.5,5 6,1.5 5,0 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw} />
+      {/* Cusp tip highlight */}
+      <path d="M -1.5,15 Q 0,19 1.5,15" fill="none" stroke={stroke} strokeWidth="0.7" opacity="0.5" />
+    </>
+  ),
+
+  premolar: (fill, stroke, sw) => (
+    <>
+      {/* Root - single, moderate length */}
+      <path d="M -4,0 C -4.5,-4 -4.5,-11 -3,-16 C -2,-18.5 -1,-19.5 0,-19.5 C 1,-19.5 2,-18.5 3,-16 C 4.5,-11 4.5,-4 4,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Crown - two cusps */}
+      <path d="M -7,0 C -8,1.5 -8.5,5 -8,9 C -7,11.5 -5,13 -3,12.5 C -1.5,12 -0.5,11 0,11 C 0.5,11 1.5,12 3,12.5 C 5,13 7,11.5 8,9 C 8.5,5 8,1.5 7,0 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw} />
+      {/* Central fissure */}
+      <path d="M 0,1 L 0,11" fill="none" stroke={stroke} strokeWidth="0.9" opacity="0.45" />
+      {/* Buccal cusp outline */}
+      <path d="M -8,9 Q -5,14 -2,12" fill="none" stroke={stroke} strokeWidth="0.7" opacity="0.4" />
+    </>
+  ),
+
+  molar: (fill, stroke, sw) => (
+    <>
+      {/* Mesial root */}
+      <path d="M -9,0 C -10,-3 -10.5,-9 -9.5,-14 C -8.5,-17 -7,-17.5 -6,-15 C -5,-12 -5.5,-6 -6,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Distal root */}
+      <path d="M 9,0 C 10,-3 10.5,-9 9.5,-14 C 8.5,-17 7,-17.5 6,-15 C 5,-12 5.5,-6 6,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Palatal/lingual root (center, slightly behind) */}
+      <path d="M -2,0 C -2.5,-3 -2.5,-9 -1.5,-13 C -0.8,-16 0.8,-16 1.5,-13 C 2.5,-9 2.5,-3 2,0 Z"
+        fill="#E4DFD6" stroke="#C9C1B4" strokeWidth="0.8" />
+      {/* Crown - wide with 2 visible buccal cusps */}
+      <path d="M -10,0 C -11,2 -11.5,6 -11,10 C -9.5,13 -6,14 -3.5,13 C -1.5,12.5 -0.5,11.5 0,11.5 C 0.5,11.5 1.5,12.5 3.5,13 C 6,14 9.5,13 11,10 C 11.5,6 11,2 10,0 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw} />
+      {/* Buccal groove (central fissure) */}
+      <path d="M 0,1 L 0,11.5" fill="none" stroke={stroke} strokeWidth="1" opacity="0.4" />
+      {/* Occlusal fissure hint */}
+      <path d="M -7,5 Q 0,7 7,5" fill="none" stroke={stroke} strokeWidth="0.7" opacity="0.35" />
+    </>
+  ),
+
+  wisdom: (fill, stroke, sw) => (
+    <>
+      {/* Mesial root */}
+      <path d="M -8,0 C -9,-3 -9,-8 -8,-12 C -7,-15 -5.5,-15 -5,-12 C -4,-9 -4.5,-5 -5,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Distal root */}
+      <path d="M 8,0 C 9,-3 9,-8 8,-12 C 7,-15 5.5,-15 5,-12 C 4,-9 4.5,-5 5,0 Z"
+        fill="#EDE8DF" stroke="#C9C1B4" strokeWidth="1" />
+      {/* Crown - slightly smaller molar */}
+      <path d="M -9,0 C -10,2 -10,6 -9.5,10 C -8,12.5 -5,13.5 -3,12.5 C -1.5,12 -0.5,11 0,11 C 0.5,11 1.5,12 3,12.5 C 5,13.5 8,12.5 9.5,10 C 10,6 10,2 9,0 Z"
+        fill={fill} stroke={stroke} strokeWidth={sw} />
+      {/* Fissure */}
+      <path d="M 0,1 L 0,11 M -5,5.5 Q 0,7 5,5.5" fill="none" stroke={stroke} strokeWidth="0.85" opacity="0.4" />
+    </>
+  ),
 };
 
 /* Single tooth SVG element */
 function ToothSVG({ tooth, selected, onClick }) {
-  const type = toothType(tooth.n);
-  const sh = SHAPES[type];
+  const type  = toothType(tooth.n);
   const fill   = toothFill[tooth.s]   || '#E8F5E9';
   const stroke = toothStroke[tooth.s] || '#A8D5C2';
-  const opacity = tooth.s === 'missing' ? 0.45 : 1;
+  const sw     = selected ? 2.5 : 1.5;
+  const opacity = tooth.s === 'missing' ? 0.4 : 1;
+  const renderFn = TEETH_SVG[type];
 
   return (
     <g onClick={onClick} style={{ cursor: 'pointer' }} opacity={opacity}>
-      {/* Root */}
-      <path d={sh.root} fill="#EDE8E0" stroke="#C8C0B4" strokeWidth="1" strokeLinejoin="round" />
-      {/* Crown */}
-      <path d={sh.crown} fill={fill} stroke={stroke} strokeWidth={selected ? 2.5 : 1.5} strokeLinejoin="round" />
-      {/* Fissure lines */}
-      {sh.fissure && (
-        <path d={sh.fissure} fill="none" stroke={stroke} strokeWidth="0.8" opacity="0.5" />
-      )}
-      {/* CEJ line (cervical) */}
-      <line x1={-10} y1={0} x2={10} y2={0} stroke={stroke} strokeWidth="0.6" opacity="0.3" />
-      {/* Selected highlight */}
+      {renderFn(fill, stroke, sw)}
       {selected && (
-        <path d={sh.crown} fill="none" stroke="#1A1A1A" strokeWidth="2.5"
-          strokeDasharray="3,2" strokeLinejoin="round" />
+        /* Selection ring around the whole tooth */
+        <ellipse cx={0} cy={5} rx={13} ry={20}
+          fill="none" stroke="#1A1A1A" strokeWidth="2" strokeDasharray="4,2.5" />
       )}
     </g>
   );
 }
 
 /* ── Arch SVG odontogram ── */
-const CX = 280, CY = 240;
-const U_RX = 225, U_RY = 148; // upper arch radii
-const L_RX = 188, L_RY = 118; // lower arch radii
+const CX = 380, CY = 330;
+const U_RX = 330, U_RY = 220; // upper arch radii
+const L_RX = 278, L_RY = 180; // lower arch radii
 
 const upperOrder = ['18','17','16','15','14','13','12','11','21','22','23','24','25','26','27','28'];
 const lowerOrder = ['48','47','46','45','44','43','42','41','31','32','33','34','35','36','37','38'];
@@ -125,7 +173,7 @@ function toothRotation(x, y) {
 function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
   const toothMap = Object.fromEntries(teeth.map(t => [t.n, t]));
 
-  const rootDepth = { wisdom: 14, molar: 14, premolar: 18, canine: 22, incisor: 20 };
+  const rootDepth = { wisdom: 26, molar: 27, premolar: 32, canine: 40, incisor: 35 };
 
   const renderArch = (order, rx, ry, startDeg, endDeg) =>
     order.map((n, i) => {
@@ -139,7 +187,7 @@ function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
       const lx = x + Math.cos(labelRad) * (rd + 8);
       const ly = y + Math.sin(labelRad) * (rd + 8);
       return (
-        <g key={n} transform={`translate(${x},${y}) rotate(${rot})`}>
+        <g key={n} transform={`translate(${x},${y}) rotate(${rot}) scale(1.5)`}>
           <ToothSVG tooth={tooth} selected={selectedTooth?.n === n}
             onClick={(e) => { e.stopPropagation(); onToothClick(tooth); }} />
           <text
@@ -152,17 +200,17 @@ function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
     });
 
   return (
-    <svg viewBox="0 0 560 480" style={{ width: '100%', maxHeight: 400, display: 'block' }}>
+    <svg viewBox="0 0 760 660" style={{ width: '100%', maxHeight: 560, display: 'block' }}>
       {/* Arch guide lines */}
-      <ellipse cx={CX} cy={CY} rx={U_RX} ry={U_RY} fill="none" stroke="#F0F0F0" strokeWidth="1" />
-      <ellipse cx={CX} cy={CY} rx={L_RX} ry={L_RY} fill="none" stroke="#F0F0F0" strokeWidth="1" />
+      <ellipse cx={CX} cy={CY} rx={U_RX} ry={U_RY} fill="none" stroke="#F0F0F0" strokeWidth="1.5" />
+      <ellipse cx={CX} cy={CY} rx={L_RX} ry={L_RY} fill="none" stroke="#F0F0F0" strokeWidth="1.5" />
       {/* Midline */}
-      <line x1={CX} y1={60} x2={CX} y2={420} stroke="#EBEBEB" strokeWidth="1" strokeDasharray="5,4" />
+      <line x1={CX} y1={70} x2={CX} y2={590} stroke="#EBEBEB" strokeWidth="1" strokeDasharray="5,4" />
       {/* Quadrant labels */}
-      <text x={CX - 14} y={76} textAnchor="end" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q1</text>
-      <text x={CX + 14} y={76} textAnchor="start" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q2</text>
-      <text x={CX - 14} y={418} textAnchor="end" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q4</text>
-      <text x={CX + 14} y={418} textAnchor="start" fontSize="9" fill="#CCC" fontFamily="DM Sans">Q3</text>
+      <text x={CX - 16} y={88} textAnchor="end" fontSize="11" fill="#CCC" fontFamily="DM Sans">Q1</text>
+      <text x={CX + 16} y={88} textAnchor="start" fontSize="11" fill="#CCC" fontFamily="DM Sans">Q2</text>
+      <text x={CX - 16} y={590} textAnchor="end" fontSize="11" fill="#CCC" fontFamily="DM Sans">Q4</text>
+      <text x={CX + 16} y={590} textAnchor="start" fontSize="11" fill="#CCC" fontFamily="DM Sans">Q3</text>
       {/* Upper arch: θ from 208° to 332° */}
       {renderArch(upperOrder, U_RX, U_RY, 208, 332)}
       {/* Lower arch: θ from 28° to 152° */}
