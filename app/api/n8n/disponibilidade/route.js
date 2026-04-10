@@ -89,12 +89,12 @@ export async function GET(request) {
     const almocoFim = diaConfig?.almoco_fim || null;
     let horariosBase = gerarSlots(inicio, fim, intervalo, almocoInicio, almocoFim);
 
-    // Para hoje, filtrar horários que já passaram (+ 30 min de antecedência)
+    // Para hoje, filtrar horários que já passaram (sem margem — slot disponível enquanto ainda não chegou)
     if (i === 0) {
       const minAtual = agora.getHours() * 60 + agora.getMinutes();
       horariosBase = horariosBase.filter(h => {
         const [hh, mm] = h.split(':').map(Number);
-        return (hh * 60 + mm) > minAtual + 30;
+        return (hh * 60 + mm) > minAtual;
       });
     }
 
