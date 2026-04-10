@@ -98,13 +98,29 @@ export default function DentistasSuperAdminPage() {
   };
 
   const handleNovoOuEditar = (tipo) => {
+    const clinicaId = clinicas.length > 0 ? clinicas[0].id : null;
+    const clinicaAtual = clinicas.find(c => c.id === clinicaId);
+
+    if (tipo === 'dentista') {
+      const limiteDentistas = clinicaAtual?.limite_dentistas ?? 5;
+      const totalDentistas = dentistas.filter(d => d.clinica_id === clinicaId && d.status === 'ativo').length;
+      if (totalDentistas >= limiteDentistas) {
+        alert(`Limite atingido: seu plano permite até ${limiteDentistas} dentista(s). Faça upgrade para adicionar mais.`);
+        return;
+      }
+      setForm({ nome: '', email: '', especialidade: '', cro: '', clinica_id: clinicaId || '', status: 'ativo' });
+    } else {
+      const limiteSecretarias = clinicaAtual?.limite_secretarias ?? 3;
+      const totalSecretarias = secretarias.filter(s => s.clinica_id === clinicaId).length;
+      if (totalSecretarias >= limiteSecretarias) {
+        alert(`Limite atingido: seu plano permite até ${limiteSecretarias} secretária(s). Faça upgrade para adicionar mais.`);
+        return;
+      }
+      setForm({ nome: '', email: '', clinica_id: clinicaId || '', status: 'ativo' });
+    }
+
     setTipoEdicao(tipo);
     setEditId(null);
-    if (tipo === 'dentista') {
-      setForm({ nome: '', email: '', especialidade: '', cro: '', clinica_id: clinicas.length > 0 ? clinicas[0].id : '', status: 'ativo' });
-    } else {
-      setForm({ nome: '', email: '', clinica_id: clinicas.length > 0 ? clinicas[0].id : '', status: 'ativo' });
-    }
     setModal('novo');
   };
 

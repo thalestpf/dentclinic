@@ -27,9 +27,47 @@ const PERMISSOES_RECEPCAO = {
 
 const categorias = ['Geral', 'Prevenção', 'Restaurações', 'Endodontia', 'Cirurgia', 'Estética', 'Implantodontia', 'Ortodontia'];
 
+const DIAS_SEMANA = [
+  { key: '0', label: 'Domingo' },
+  { key: '1', label: 'Segunda-feira' },
+  { key: '2', label: 'Terça-feira' },
+  { key: '3', label: 'Quarta-feira' },
+  { key: '4', label: 'Quinta-feira' },
+  { key: '5', label: 'Sexta-feira' },
+  { key: '6', label: 'Sábado' },
+];
+
+const HORARIOS_PADRAO = {
+  intervalo: 30,
+  dias: {
+    '0': { ativo: false, inicio: '08:00', fim: '17:30', almoco_inicio: '', almoco_fim: '' },
+    '1': { ativo: true,  inicio: '08:00', fim: '17:30', almoco_inicio: '12:00', almoco_fim: '13:00' },
+    '2': { ativo: true,  inicio: '08:00', fim: '17:30', almoco_inicio: '12:00', almoco_fim: '13:00' },
+    '3': { ativo: true,  inicio: '08:00', fim: '17:30', almoco_inicio: '12:00', almoco_fim: '13:00' },
+    '4': { ativo: true,  inicio: '08:00', fim: '17:30', almoco_inicio: '12:00', almoco_fim: '13:00' },
+    '5': { ativo: true,  inicio: '08:00', fim: '17:30', almoco_inicio: '12:00', almoco_fim: '13:00' },
+    '6': { ativo: false, inicio: '08:00', fim: '12:00', almoco_inicio: '', almoco_fim: '' },
+  },
+};
+
 export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState('usuarios');
   const [roleAtual, setRoleAtual] = useState('');
+  const [clinicaId, setClinicaId] = useState(null);
+
+  // Stats de uso da clínica
+  const [usageStats, setUsageStats] = useState({ dentistas: 0, secretarias: 0, pacientes: 0 });
+
+  // Horários de funcionamento
+  const [horarios, setHorarios] = useState(HORARIOS_PADRAO);
+  const [salvandoHorarios, setSalvandoHorarios] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState(null); // { msg, tipo: 'sucesso' | 'erro' }
+  const showToast = (msg, tipo = 'sucesso') => {
+    setToast({ msg, tipo });
+    setTimeout(() => setToast(null), 3500);
+  };
   const [usuarios, setUsuarios] = useState([]);
   const [carregandoUsuarios, setCarregandoUsuarios] = useState(false);
   const [clinica, setClinica] = useState({
@@ -67,18 +105,48 @@ export default function ConfiguracoesPage() {
   const [formProc, setFormProc] = useState({ nome: '', categoria: 'Geral', preco: '', status: 'ativo' });
   const [salvandoProc, setSalvandoProc] = useState(false);
 
-  const tabs = ['Usuários', 'Clínica', 'Convênios', 'Procedimentos'];
+  const tabs = ['Usuários', 'Clínica', 'Convênios', 'Procedimentos', 'Horários'];
 
   // ========== CARREGAR DADOS ==========
   useEffect(() => {
     setRoleAtual(localStorage.getItem('dentclinic_role') || '');
     carregarUsuarios();
+    carregarClinicaId();
   }, []);
 
   useEffect(() => {
     if (activeTab === 'convenios') carregarConvenios();
     if (activeTab === 'procedimentos') carregarProcedimentos();
+    if (activeTab === 'horarios') carregarHorarios();
+    if (activeTab === 'clinica') carregarUsageStats();
   }, [activeTab]);
+
+  const carregarClinicaId = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
+      if (data?.clinica_id) setClinicaId(data.clinica_id);
+    } catch {}
+  };
+
+  const carregarUsageStats = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
+      if (!role?.clinica_id) return;
+      const cid = role.clinica_id;
+
+      const [{ count: cDentistas }, { count: cSecretarias }, { count: cPacientes }] = await Promise.all([
+        supabase.from('dentistas').select('*', { count: 'exact', head: true }).eq('clinica_id', cid).eq('status', 'ativo'),
+        supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('clinica_id', cid).eq('role', 'secretaria'),
+        supabase.from('pacientes').select('*', { count: 'exact', head: true }).eq('clinica_id', cid),
+      ]);
+
+      setUsageStats({ dentistas: cDentistas || 0, secretarias: cSecretarias || 0, pacientes: cPacientes || 0 });
+    } catch {}
+  };
 
   const carregarUsuarios = async () => {
     setCarregandoUsuarios(true);
@@ -134,7 +202,7 @@ export default function ConfiguracoesPage() {
 
   const handleSalvarConvenio = async () => {
     if (!formConvenio.nome.trim()) {
-      alert('Preencha o nome do convênio');
+      showToast('Preencha o nome do convênio', 'erro');
       return;
     }
     setSalvandoConvenio(true);
@@ -164,8 +232,9 @@ export default function ConfiguracoesPage() {
       }
       setModalConvenio(false);
       carregarConvenios();
+      showToast(editIdConvenio ? 'Convênio atualizado!' : 'Convênio cadastrado!');
     } catch (e) {
-      alert('Erro ao salvar convênio');
+      showToast('Erro ao salvar convênio', 'erro');
     } finally {
       setSalvandoConvenio(false);
     }
@@ -183,7 +252,7 @@ export default function ConfiguracoesPage() {
       });
       carregarConvenios();
     } catch (e) {
-      alert('Erro ao excluir convênio');
+      showToast('Erro ao excluir convênio', 'erro');
     }
   };
 
@@ -201,15 +270,35 @@ export default function ConfiguracoesPage() {
       });
       carregarConvenios();
     } catch (e) {
-      alert('Erro ao atualizar status');
+      showToast('Erro ao atualizar status', 'erro');
     }
   };
 
   // ========== USUÁRIOS ==========
   const handleNovoUsuario = () => {
+    const limiteSecretarias = 3;
+    const limiteDentistas = 5;
+
+    if (usageStats.secretarias >= limiteSecretarias && usageStats.dentistas >= limiteDentistas) {
+      showToast(`Limite do plano atingido. Faça upgrade para adicionar mais usuários.`, 'erro');
+      return;
+    }
+
     setEditIdUsuario(null);
     setFormUsuario({ nome: '', email: '', senha: '', perfil: 'Recepção', status: 'ativo', permissoes: { ...PERMISSOES_RECEPCAO } });
     setModalUsuario('novo');
+  };
+
+  const validarLimiteUsuario = (perfil) => {
+    if (perfil === 'Recepção' && usageStats.secretarias >= 3) {
+      showToast('Limite de secretárias atingido (máx. 3). Faça upgrade do plano.', 'erro');
+      return false;
+    }
+    if (perfil === 'Dentista' && usageStats.dentistas >= 5) {
+      showToast('Limite de dentistas atingido (máx. 5). Faça upgrade do plano.', 'erro');
+      return false;
+    }
+    return true;
   };
 
   const handleEditarUsuario = (usuario) => {
@@ -222,13 +311,14 @@ export default function ConfiguracoesPage() {
     if (!window.confirm('Deseja realmente excluir este usuário?')) return;
     const res = await fetch('/api/usuarios', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     if (res.ok) { carregarUsuarios(); }
-    else { const d = await res.json(); alert('Erro: ' + d.error); }
+    else { const d = await res.json(); showToast('Erro: ' + d.error, 'erro'); }
   };
 
   const handleSalvarUsuario = async () => {
-    if (!formUsuario.nome || !formUsuario.perfil) { alert('Preencha nome e perfil'); return; }
-    if (modalUsuario === 'novo' && (!formUsuario.email || !formUsuario.senha)) { alert('Email e senha são obrigatórios para novo usuário'); return; }
-    if (formUsuario.senha && formUsuario.senha.length < 6) { alert('Senha deve ter no mínimo 6 caracteres'); return; }
+    if (!formUsuario.nome || !formUsuario.perfil) { showToast('Preencha nome e perfil', 'erro'); return; }
+    if (modalUsuario === 'novo' && (!formUsuario.email || !formUsuario.senha)) { showToast('Email e senha são obrigatórios para novo usuário', 'erro'); return; }
+    if (formUsuario.senha && formUsuario.senha.length < 6) { showToast('Senha deve ter no mínimo 6 caracteres', 'erro'); return; }
+    if (modalUsuario === 'novo' && !validarLimiteUsuario(formUsuario.perfil)) return;
     setSalvandoUsuario(true);
     try {
       if (modalUsuario === 'novo') {
@@ -236,14 +326,15 @@ export default function ConfiguracoesPage() {
         const clinicaId = session ? (await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle()).data?.clinica_id : null;
         const res = await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formUsuario, clinica_id: clinicaId }) });
         const d = await res.json();
-        if (!res.ok) { alert('Erro: ' + d.error); return; }
+        if (!res.ok) { showToast('Erro: ' + d.error, 'erro'); return; }
       } else {
         const res = await fetch('/api/usuarios', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editIdUsuario, nome: formUsuario.nome, email: formUsuario.email, perfil: formUsuario.perfil, permissoes: formUsuario.permissoes, senha: formUsuario.senha || undefined }) });
         const d = await res.json();
-        if (!res.ok) { alert('Erro: ' + d.error); return; }
+        if (!res.ok) { showToast('Erro: ' + d.error, 'erro'); return; }
       }
       setModalUsuario(null);
       carregarUsuarios();
+      showToast(modalUsuario === 'novo' ? 'Usuário criado com sucesso!' : 'Usuário atualizado!');
     } finally {
       setSalvandoUsuario(false);
     }
@@ -266,7 +357,7 @@ export default function ConfiguracoesPage() {
   // ========== CLÍNICA ==========
   const handleSalvarClinica = () => {
     if (!formClinica.nome || !formClinica.cnpj) {
-      alert('Preencha os campos obrigatórios');
+      showToast('Preencha os campos obrigatórios', 'erro');
       return;
     }
     setClinica({ ...formClinica });
@@ -304,7 +395,7 @@ export default function ConfiguracoesPage() {
   };
 
   const handleSalvarProc = async () => {
-    if (!formProc.nome || !formProc.preco) { alert('Informe descrição e valor'); return; }
+    if (!formProc.nome || !formProc.preco) { showToast('Informe descrição e valor', 'erro'); return; }
     setSalvandoProc(true);
     const dados = { nome: formProc.nome, categoria: formProc.categoria, preco: parseFloat(formProc.preco), status: formProc.status };
     try {
@@ -323,7 +414,8 @@ export default function ConfiguracoesPage() {
       }
       setModalProc(false);
       carregarProcedimentos();
-    } catch { alert('Erro ao salvar procedimento'); }
+      showToast(editIdProc ? 'Procedimento atualizado!' : 'Procedimento cadastrado!');
+    } catch { showToast('Erro ao salvar procedimento', 'erro'); }
     finally { setSalvandoProc(false); }
   };
 
@@ -341,8 +433,62 @@ export default function ConfiguracoesPage() {
     return map[tipo] || tipo;
   };
 
+  // ========== HORÁRIOS DE FUNCIONAMENTO ==========
+  const carregarHorarios = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
+      if (!role?.clinica_id) return;
+      const { data: clinica } = await supabase.from('clinicas').select('horarios_funcionamento').eq('id', role.clinica_id).maybeSingle();
+      if (clinica?.horarios_funcionamento) {
+        setHorarios({ ...HORARIOS_PADRAO, ...clinica.horarios_funcionamento, dias: { ...HORARIOS_PADRAO.dias, ...clinica.horarios_funcionamento.dias } });
+      }
+    } catch {}
+  };
+
+  const salvarHorarios = async () => {
+    setSalvandoHorarios(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { showToast('Sessão expirada', 'erro'); return; }
+      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
+      if (!role?.clinica_id) { showToast('Clínica não encontrada', 'erro'); return; }
+      const { error } = await supabase.from('clinicas').update({ horarios_funcionamento: horarios }).eq('id', role.clinica_id);
+      if (error) throw error;
+      showToast('Horários salvos com sucesso!');
+    } catch (e) {
+      showToast('Erro ao salvar: ' + e.message, 'erro');
+    } finally {
+      setSalvandoHorarios(false);
+    }
+  };
+
+  const atualizarDia = (diaKey, campo, valor) => {
+    setHorarios(prev => ({
+      ...prev,
+      dias: { ...prev.dias, [diaKey]: { ...prev.dias[diaKey], [campo]: valor } },
+    }));
+  };
+
   return (
     <div style={s.main}>
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 32, right: 32, zIndex: 2000,
+          background: toast.tipo === 'erro' ? '#FFF5F5' : '#F0FFF4',
+          border: `1.5px solid ${toast.tipo === 'erro' ? '#FC8181' : '#68D391'}`,
+          color: toast.tipo === 'erro' ? '#C53030' : '#276749',
+          borderRadius: 10, padding: '14px 20px', fontSize: 14, fontWeight: 500,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.10)',
+          display: 'flex', alignItems: 'center', gap: 10, minWidth: 260,
+          animation: 'slideUp 0.2s ease',
+        }}>
+          <span style={{ fontSize: 18 }}>{toast.tipo === 'erro' ? '❌' : '✅'}</span>
+          {toast.msg}
+        </div>
+      )}
+
       <PageHeader
         title="Configurações"
         subtitle="Gerencie usuários, dados da clínica e procedimentos"
@@ -598,6 +744,65 @@ export default function ConfiguracoesPage() {
               </div>
             )}
           </Card>
+
+          {/* PLANO */}
+          <h2 style={{ ...s.sectionTitle, marginTop: 32, marginBottom: 16 }}>Plano Atual</h2>
+          <Card>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
+              {/* Badge do plano */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg, #A8D5C2 0%, #6dbfa3 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
+                  🦷
+                </div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#1A1A1A', fontFamily: "'DM Serif Display', serif" }}>Plano Pro</div>
+                  <div style={{ fontSize: 13, color: '#888', marginTop: 2 }}>Renovação anual · Ativo</div>
+                </div>
+                <span style={{ background: '#F0FFF4', color: '#276749', border: '1px solid #9AE6B4', borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600 }}>
+                  ✓ Ativo
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginTop: 24 }}>
+              {[
+                { label: 'Dentistas', usado: usageStats.dentistas, limite: 5, icon: '👨‍⚕️' },
+                { label: 'Secretárias', usado: usageStats.secretarias, limite: 3, icon: '💼' },
+                { label: 'Pacientes', usado: usageStats.pacientes, limite: null, icon: '🧑‍🤝‍🧑' },
+              ].map(({ label, usado, limite, icon }) => {
+                const pct = limite ? Math.min(100, Math.round((usado / limite) * 100)) : null;
+                const cor = pct >= 90 ? '#E53E3E' : pct >= 70 ? '#D69E2E' : '#38A169';
+                return (
+                  <div key={label} style={{ background: '#F8F8F8', borderRadius: 10, padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>{icon} {label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A' }}>
+                        {usado}{limite ? `/${limite}` : ''}
+                      </span>
+                    </div>
+                    {limite ? (
+                      <>
+                        <div style={{ height: 6, background: '#E8E8E8', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: cor, borderRadius: 4, transition: 'width 0.4s ease' }} />
+                        </div>
+                        <div style={{ fontSize: 11, color: '#AAA', marginTop: 5 }}>{pct}% utilizado</div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 11, color: '#AAA', marginTop: 5 }}>Ilimitado</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ borderTop: '1.5px solid #EFEFEF', marginTop: 20, paddingTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['Agenda inteligente', 'WhatsApp IA', 'Múltiplos dentistas', 'Relatórios', 'Suporte prioritário'].map(f => (
+                <span key={f} style={{ background: '#EBF8FF', color: '#2C7A7B', border: '1px solid #BEE3F8', borderRadius: 20, padding: '4px 12px', fontSize: 12 }}>
+                  ✓ {f}
+                </span>
+              ))}
+            </div>
+          </Card>
         </>
       )}
 
@@ -816,6 +1021,112 @@ export default function ConfiguracoesPage() {
               </div>
             </div>
           )}
+        </>
+      )}
+
+      {/* ABA 5: HORÁRIOS */}
+      {activeTab === 'horarios' && (
+        <>
+          <div style={s.tabHeader}>
+            <h2 style={s.sectionTitle}>Horários de Funcionamento</h2>
+            <Button onClick={salvarHorarios} disabled={salvandoHorarios}>
+              {salvandoHorarios ? 'Salvando...' : 'Salvar Horários'}
+            </Button>
+          </div>
+
+          <Card style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '4px 0 16px' }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#1A1A1A' }}>Duração de cada consulta</span>
+              <select
+                value={horarios.intervalo}
+                onChange={e => setHorarios(prev => ({ ...prev, intervalo: parseInt(e.target.value) }))}
+                style={{ ...s.input, width: 120 }}
+              >
+                <option value={15}>15 min</option>
+                <option value={20}>20 min</option>
+                <option value={30}>30 min</option>
+                <option value={60}>60 min</option>
+              </select>
+            </div>
+
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Dia</th>
+                  <th style={s.th}>Atende</th>
+                  <th style={s.th}>Início</th>
+                  <th style={s.th}>Fim</th>
+                  <th style={s.th}>Intervalo início</th>
+                  <th style={s.th}>Intervalo fim</th>
+                </tr>
+              </thead>
+              <tbody>
+                {DIAS_SEMANA.map(({ key, label }) => {
+                  const dia = horarios.dias[key] || {};
+                  return (
+                    <tr key={key}>
+                      <td style={{ ...s.td, fontWeight: 500 }}>{label}</td>
+                      <td style={s.td}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={!!dia.ativo}
+                            onChange={e => atualizarDia(key, 'ativo', e.target.checked)}
+                            style={{ width: 16, height: 16, cursor: 'pointer' }}
+                          />
+                          <span style={{ fontSize: 13, color: dia.ativo ? '#38A169' : '#AAA' }}>
+                            {dia.ativo ? 'Sim' : 'Não'}
+                          </span>
+                        </label>
+                      </td>
+                      <td style={s.td}>
+                        <input
+                          type="time"
+                          value={dia.inicio || ''}
+                          onChange={e => atualizarDia(key, 'inicio', e.target.value)}
+                          disabled={!dia.ativo}
+                          style={{ ...s.input, width: 110, opacity: dia.ativo ? 1 : 0.4 }}
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <input
+                          type="time"
+                          value={dia.fim || ''}
+                          onChange={e => atualizarDia(key, 'fim', e.target.value)}
+                          disabled={!dia.ativo}
+                          style={{ ...s.input, width: 110, opacity: dia.ativo ? 1 : 0.4 }}
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <input
+                          type="time"
+                          value={dia.almoco_inicio || ''}
+                          onChange={e => atualizarDia(key, 'almoco_inicio', e.target.value)}
+                          disabled={!dia.ativo}
+                          style={{ ...s.input, width: 110, opacity: dia.ativo ? 1 : 0.4 }}
+                          placeholder="--:--"
+                        />
+                      </td>
+                      <td style={s.td}>
+                        <input
+                          type="time"
+                          value={dia.almoco_fim || ''}
+                          onChange={e => atualizarDia(key, 'almoco_fim', e.target.value)}
+                          disabled={!dia.ativo}
+                          style={{ ...s.input, width: 110, opacity: dia.ativo ? 1 : 0.4 }}
+                          placeholder="--:--"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <p style={{ fontSize: 12, color: '#AAA', marginTop: 16 }}>
+              O intervalo de almoço é opcional. Deixe em branco se não houver pausa.
+            </p>
+          </Card>
         </>
       )}
     </div>

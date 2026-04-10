@@ -6,11 +6,36 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const HORARIOS = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
 const DIAS_SEMANA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
 function autorizado(request) {
   return request.headers.get('authorization') === `Bearer ${process.env.N8N_SECRET_KEY}`;
+}
+
+// Gera slots de HH:MM entre inicio e fim com intervalo em minutos, excluindo pausa de almoço
+function gerarSlots(inicio, fim, intervalo, almocoInicio, almocoFim) {
+  const slots = [];
+  const [ihh, imm] = inicio.split(':').map(Number);
+  const [fhh, fmm] = fim.split(':').map(Number);
+  const inicioMin = ihh * 60 + imm;
+  const fimMin = fhh * 60 + fmm;
+
+  let almocoInicioMin = null;
+  let almocoFimMin = null;
+  if (almocoInicio && almocoFim) {
+    const [aihh, aimm] = almocoInicio.split(':').map(Number);
+    const [afhh, afmm] = almocoFim.split(':').map(Number);
+    almocoInicioMin = aihh * 60 + aimm;
+    almocoFimMin = afhh * 60 + afmm;
+  }
+
+  for (let min = inicioMin; min < fimMin; min += intervalo) {
+    if (almocoInicioMin !== null && min >= almocoInicioMin && min < almocoFimMin) continue;
+    const hh = String(Math.floor(min / 60)).padStart(2, '0');
+    const mm = String(min % 60).padStart(2, '0');
+    slots.push(`${hh}:${mm}`);
+  }
+  return slots;
 }
 
 export async function GET(request) {
@@ -21,6 +46,19 @@ export async function GET(request) {
   const clinicaId = searchParams.get('clinica_id');
   const dentistaNome = searchParams.get('dentista_nome') || null;
 
+  // Buscar configuração de horários da clínica
+  let horariosConfig = null;
+  if (clinicaId) {
+    const { data: clinica } = await supabaseAdmin
+      .from('clinicas')
+      .select('horarios_funcionamento')
+      .eq('id', clinicaId)
+      .maybeSingle();
+    horariosConfig = clinica?.horarios_funcionamento || null;
+  }
+
+  const intervalo = horariosConfig?.intervalo || 30;
+
   const agora = new Date();
   const hoje = new Date(agora);
   hoje.setHours(0, 0, 0, 0);
@@ -30,19 +68,31 @@ export async function GET(request) {
   for (let i = 0; i <= dias; i++) {
     const data = new Date(hoje);
     data.setDate(hoje.getDate() + i);
+    const diaSemanaIdx = data.getDay(); // 0=Dom, 6=Sab
 
-    // Pular domingos
-    if (data.getDay() === 0) continue;
+    // Obter config do dia
+    const diaConfig = horariosConfig?.dias?.[String(diaSemanaIdx)];
+
+    // Se tem config e o dia está desativado, pular
+    if (diaConfig && !diaConfig.ativo) continue;
+    // Se não tem config e é domingo, pular (comportamento padrão)
+    if (!diaConfig && diaSemanaIdx === 0) continue;
 
     const dataISO = data.toISOString().split('T')[0];
     const dataBR = `${String(data.getDate()).padStart(2,'0')}/${String(data.getMonth()+1).padStart(2,'0')}`;
-    const diaSemana = DIAS_SEMANA[data.getDay()];
+    const diaSemana = DIAS_SEMANA[diaSemanaIdx];
+
+    // Gerar slots do dia
+    const inicio = diaConfig?.inicio || '08:00';
+    const fim = diaConfig?.fim || '17:30';
+    const almocoInicio = diaConfig?.almoco_inicio || null;
+    const almocoFim = diaConfig?.almoco_fim || null;
+    let horariosBase = gerarSlots(inicio, fim, intervalo, almocoInicio, almocoFim);
 
     // Para hoje, filtrar horários que já passaram (+ 30 min de antecedência)
-    let horariosBase = HORARIOS;
     if (i === 0) {
       const minAtual = agora.getHours() * 60 + agora.getMinutes();
-      horariosBase = HORARIOS.filter(h => {
+      horariosBase = horariosBase.filter(h => {
         const [hh, mm] = h.split(':').map(Number);
         return (hh * 60 + mm) > minAtual + 30;
       });

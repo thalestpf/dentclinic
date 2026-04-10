@@ -14,33 +14,57 @@ export async function GET(request) {
   if (!autorizado(request)) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const telefone = searchParams.get('telefone');
+  const telefone  = searchParams.get('telefone');
+  const clinicaId = searchParams.get('clinica_id');
+
   if (!telefone) return NextResponse.json({ error: 'telefone obrigatório' }, { status: 400 });
 
-  const { data } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('sessoes_whatsapp')
     .select('*')
-    .eq('telefone', telefone)
-    .maybeSingle();
+    .eq('telefone', telefone);
 
-  return NextResponse.json(data || { telefone, estado: 'idle', dados: {} });
+  if (clinicaId) query = query.eq('clinica_id', clinicaId);
+
+  const { data } = await query.maybeSingle();
+
+  return NextResponse.json(data || { telefone, clinica_id: clinicaId, estado: 'idle', dados: {} });
 }
 
 export async function POST(request) {
   if (!autorizado(request)) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
-  const { telefone, estado, dados } = await request.json();
+  const { telefone, clinica_id, estado, dados } = await request.json();
   if (!telefone) return NextResponse.json({ error: 'telefone obrigatório' }, { status: 400 });
 
-  const { data, error } = await supabaseAdmin
+  // Verificar se já existe sessão para esse telefone+clinica
+  let query = supabaseAdmin
     .from('sessoes_whatsapp')
-    .upsert(
-      { telefone, estado, dados, atualizado_em: new Date().toISOString() },
-      { onConflict: 'telefone' }
-    )
-    .select()
-    .single();
+    .select('id')
+    .eq('telefone', telefone);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  if (clinica_id) query = query.eq('clinica_id', clinica_id);
+
+  const { data: existente } = await query.maybeSingle();
+
+  const registro = { telefone, clinica_id: clinica_id || null, estado, dados, atualizado_em: new Date().toISOString() };
+
+  let result;
+  if (existente) {
+    result = await supabaseAdmin
+      .from('sessoes_whatsapp')
+      .update(registro)
+      .eq('id', existente.id)
+      .select()
+      .single();
+  } else {
+    result = await supabaseAdmin
+      .from('sessoes_whatsapp')
+      .insert(registro)
+      .select()
+      .single();
+  }
+
+  if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 });
+  return NextResponse.json(result.data);
 }

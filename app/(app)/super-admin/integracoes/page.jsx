@@ -16,11 +16,13 @@ export default function IntegracoesPage() {
     numero: '',
     nome_exibicao: '',
     token_api: '',
+    instancia_evolution: '',
+    mostrarToken: false,
     ativo: true,
   });
 
   const [n8nForm, setN8nForm] = useState({
-    webhook_url: '',
+    webhook_base_url: '',
     token: '',
     ativo: true,
   });
@@ -62,13 +64,13 @@ export default function IntegracoesPage() {
   useEffect(() => {
     if (clinicaSelecionada && configs[clinicaSelecionada]) {
       const config = configs[clinicaSelecionada];
-      setWhatsappForm(config.whatsapp || {});
-      setN8nForm(config.n8n || {});
+      setWhatsappForm({ numero: '', nome_exibicao: '', token_api: '', instancia_evolution: '', mostrarToken: false, ativo: true, ...config.whatsapp });
+      setN8nForm({ webhook_base_url: '', token: '', ativo: true, ...config.n8n });
       setTemplates(config.templates || templates);
       setAutomacoes(config.automacoes || automacoes);
     } else {
-      setWhatsappForm({ numero: '', nome_exibicao: '', token_api: '', ativo: true });
-      setN8nForm({ webhook_url: '', token: '', ativo: true });
+      setWhatsappForm({ numero: '', nome_exibicao: '', token_api: '', instancia_evolution: '', mostrarToken: false, ativo: true });
+      setN8nForm({ webhook_base_url: '', token: '', ativo: true });
     }
   }, [clinicaSelecionada]);
 
@@ -225,6 +227,20 @@ export default function IntegracoesPage() {
               </div>
 
               <div style={s.formGroup}>
+                <label style={s.label}>Nome da Instância (Evolution API) *</label>
+                <input
+                  type="text"
+                  placeholder="dental-senior, sorriso-perfeito..."
+                  value={whatsappForm.instancia_evolution}
+                  onChange={(e) => setWhatsappForm({ ...whatsappForm, instancia_evolution: e.target.value })}
+                  style={s.input}
+                />
+                <p style={{ fontSize: 11, color: '#AAA', marginTop: 6 }}>
+                  Nome exato da instância criada no Evolution API para esta clínica
+                </p>
+              </div>
+
+              <div style={s.formGroup}>
                 <label style={s.label}>API Token/Bearer *</label>
                 <div style={s.tokenContainer}>
                   <input
@@ -278,22 +294,44 @@ export default function IntegracoesPage() {
             <Card>
               <CardTitle>Configuração N8N</CardTitle>
               <p style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>
-                Configure o webhook do n8n para processar mensagens do WhatsApp
+                Um único workflow n8n atende todas as clínicas. Cada clínica usa a URL com seu ID.
               </p>
 
               <div style={s.formGroup}>
-                <label style={s.label}>Webhook URL *</label>
+                <label style={s.label}>URL base do webhook n8n *</label>
                 <input
                   type="text"
-                  placeholder="https://n8n.minhaempresa.com/webhook/clinica-1"
-                  value={n8nForm.webhook_url}
-                  onChange={(e) => setN8nForm({ ...n8nForm, webhook_url: e.target.value })}
+                  placeholder="https://n8n.geraresistemas.com.br/webhook/dentclinic"
+                  value={n8nForm.webhook_base_url}
+                  onChange={(e) => setN8nForm({ ...n8nForm, webhook_base_url: e.target.value })}
                   style={s.input}
                 />
                 <p style={{ fontSize: 11, color: '#AAA', marginTop: 6 }}>
-                  URL do webhook configurado no seu workflow do n8n
+                  URL do webhook no n8n, sem parâmetros. O sistema adiciona o clinica_id automaticamente.
                 </p>
               </div>
+
+              {n8nForm.webhook_base_url && clinicaSelecionada && (
+                <div style={{ background: '#F0FFF4', border: '1.5px solid #9AE6B4', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#276749', marginBottom: 8 }}>
+                    🔗 URL para configurar no Evolution API desta clínica:
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <code style={{ flex: 1, background: '#fff', border: '1px solid #C6F6D5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#1A1A1A', wordBreak: 'break-all' }}>
+                      {n8nForm.webhook_base_url}?clinica_id={clinicaSelecionada}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(`${n8nForm.webhook_base_url}?clinica_id=${clinicaSelecionada}`); showMensagem('URL copiada!'); }}
+                      style={{ padding: '8px 14px', background: '#38A169', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      📋 Copiar
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 11, color: '#276749', marginTop: 8, marginBottom: 0 }}>
+                    Configure essa URL no Evolution API → Instância <strong>{whatsappForm.instancia_evolution || '(defina a instância na aba WhatsApp)'}</strong> → Webhook
+                  </p>
+                </div>
+              )}
 
               <div style={s.formGroup}>
                 <label style={s.label}>Token de Autenticação *</label>
