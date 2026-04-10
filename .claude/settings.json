@@ -48,7 +48,13 @@
       "mcp__n8n__get_workflow_details",
       "Bash(curl -s -X PATCH https://n8n.geraresistemas.com.br/api/v1/workflows/jACb0zILelzezeKZ -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1NzEyNzkwfQ.Q2ZvNhRM1ExGp4UbKFISV_S5RhhjNwQnsOK3hBScDU4' -H 'Content-Type: application/json' -d '{\"settings\": {\"executionOrder\": \"v1\", \"availableInMCP\": true}}')",
       "Bash(curl -s \"https://api.github.com/repos/thalestpf/dentclinic/commits/main\")",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(curl -s 'https://dentclinic-next.vercel.app/api/n8n/sessao?telefone=5511999' -H 'Authorization: Bearer dentclinic_n8n_2024')",
+      "Bash(curl -s 'https://dentclinic-next.vercel.app/api/n8n/disponibilidade?clinica_id=f47ac10b-58cc-4372-a567-0e02b2c3d479&dias=3' -H 'Authorization: Bearer dentclinic_n8n_2024')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);j.forEach\\(d=>console.log\\(d.dia_semana, d.data_br, '-', d.horarios.length, 'horários'\\)\\)}\\)\")",
+      "Bash(node h:/tmp/fix_workflow.js)",
+      "Bash(curl -s -X PUT https://n8n.geraresistemas.com.br/api/v1/workflows/jACb0zILelzezeKZ -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1NzEyNzkwfQ.Q2ZvNhRM1ExGp4UbKFISV_S5RhhjNwQnsOK3hBScDU4' -H 'Content-Type: application/json' -d @h:/tmp/wf_fix.json)",
+      "mcp__n8n__search_nodes"
     ],
     "additionalDirectories": [
       "\\tmp",
