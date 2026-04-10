@@ -551,27 +551,20 @@ export default function Agenda() {
 
         {/* Filtro de dentistas */}
         {dentistasParaFiltro.length > 0 && (
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginLeft:8 }}>
-            {dentistasParaFiltro.map((d,i) => {
-              const cor = DENTIST_PALETTE[i%DENTIST_PALETTE.length];
-              const ativo = dentistasFiltro.size===0 || dentistasFiltro.has(d.nome);
-              return (
-                <button key={d.id}
-                  style={{ padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:500, cursor:'pointer', border:`1.5px solid ${ativo?cor.border:'#E8E8E8'}`, background:ativo?cor.bg:'#fff', color:ativo?cor.text:'#AAA', transition:'all .15s' }}
-                  onClick={() => {
-                    setDentistasFiltro(prev => {
-                      const novo = new Set(prev);
-                      if (prev.size===0) { dentistasParaFiltro.forEach(x=>novo.add(x.nome)); novo.delete(d.nome); }
-                      else if (novo.has(d.nome)) { novo.delete(d.nome); if(novo.size===dentistasParaFiltro.length-1) return new Set(); }
-                      else { novo.add(d.nome); if(novo.size===dentistasParaFiltro.length) return new Set(); }
-                      return novo;
-                    });
-                  }}
-                >
-                  {d.nome}
-                </button>
-              );
-            })}
+          <div style={{ marginLeft:8 }}>
+            <select
+              value={dentistasFiltro.size === 1 ? [...dentistasFiltro][0] : ''}
+              onChange={e => {
+                const val = e.target.value;
+                setDentistasFiltro(val ? new Set([val]) : new Set());
+              }}
+              style={{ padding:'6px 12px', borderRadius:8, fontSize:13, border:'1.5px solid #E8E8E8', background:'#fff', color:'#1A1A1A', cursor:'pointer', outline:'none' }}
+            >
+              <option value="">Todos os dentistas</option>
+              {dentistasParaFiltro.map(d => (
+                <option key={d.id} value={d.nome}>{d.nome}{d.especialidade ? ` — ${d.especialidade}` : ''}</option>
+              ))}
+            </select>
           </div>
         )}
 
