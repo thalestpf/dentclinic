@@ -125,8 +125,15 @@ export default function ConfiguracoesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
-      if (data?.clinica_id) setClinicaId(data.clinica_id);
+      const { data } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
+      if (data?.clinica_id) {
+        setClinicaId(data.clinica_id);
+        // Carregar horários já na inicialização
+        const { data: cl } = await supabase.from('clinicas').select('horarios_funcionamento').eq('id', data.clinica_id).maybeSingle();
+        if (cl?.horarios_funcionamento) {
+          setHorarios(prev => ({ ...prev, ...cl.horarios_funcionamento, dias: { ...prev.dias, ...cl.horarios_funcionamento.dias } }));
+        }
+      }
     } catch {}
   };
 
@@ -134,7 +141,7 @@ export default function ConfiguracoesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
+      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
       if (!role?.clinica_id) return;
       const cid = role.clinica_id;
 
@@ -152,7 +159,7 @@ export default function ConfiguracoesPage() {
     setCarregandoUsuarios(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const clinicaId = session ? (await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle()).data?.clinica_id : null;
+      const clinicaId = session ? (await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle()).data?.clinica_id : null;
       const params = clinicaId ? `?clinica_id=${clinicaId}` : '';
       const res = await fetch(`/api/usuarios${params}`);
       const data = await res.json();
@@ -323,7 +330,7 @@ export default function ConfiguracoesPage() {
     try {
       if (modalUsuario === 'novo') {
         const { data: { session } } = await supabase.auth.getSession();
-        const clinicaId = session ? (await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle()).data?.clinica_id : null;
+        const clinicaId = session ? (await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle()).data?.clinica_id : null;
         const res = await fetch('/api/usuarios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formUsuario, clinica_id: clinicaId }) });
         const d = await res.json();
         if (!res.ok) { showToast('Erro: ' + d.error, 'erro'); return; }
@@ -438,7 +445,7 @@ export default function ConfiguracoesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
+      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
       if (!role?.clinica_id) return;
       const { data: clinica } = await supabase.from('clinicas').select('horarios_funcionamento').eq('id', role.clinica_id).maybeSingle();
       if (clinica?.horarios_funcionamento) {
@@ -482,17 +489,25 @@ export default function ConfiguracoesPage() {
   };
 
   const salvarHorarios = async () => {
+    // Obter clinicaId do state ou re-buscar
+    let cid = clinicaId;
+    if (!cid) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { showToast('Sessão expirada', 'erro'); return; }
+        const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
+        cid = role?.clinica_id;
+      } catch {}
+    }
+    if (!cid) { showToast('Clínica não encontrada. Faça login novamente.', 'erro'); return; }
+
     setSalvandoHorarios(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { showToast('Sessão expirada', 'erro'); return; }
-      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
-      if (!role?.clinica_id) { showToast('Clínica não encontrada', 'erro'); return; }
       const horario_atendimento = gerarTextoHorario(horarios);
       const { error } = await supabase.from('clinicas').update({
         horarios_funcionamento: horarios,
         horario_atendimento,
-      }).eq('id', role.clinica_id);
+      }).eq('id', cid);
       if (error) throw error;
       showToast('Horários salvos com sucesso!');
     } catch (e) {
