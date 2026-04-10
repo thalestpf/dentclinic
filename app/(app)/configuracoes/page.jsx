@@ -447,6 +447,40 @@ export default function ConfiguracoesPage() {
     } catch {}
   };
 
+  const gerarTextoHorario = (horariosConfig) => {
+    const abrevDia = { '1':'Seg','2':'Ter','3':'Qua','4':'Qui','5':'Sex','6':'Sáb','0':'Dom' };
+    const diasAtivos = Object.entries(horariosConfig.dias)
+      .filter(([, d]) => d.ativo)
+      .sort(([a], [b]) => Number(a) - Number(b));
+    if (diasAtivos.length === 0) return '';
+
+    // Agrupar dias consecutivos com mesmo horário
+    const grupos = [];
+    diasAtivos.forEach(([key, d]) => {
+      const horario = `${d.inicio} às ${d.fim}`;
+      const ultimo = grupos[grupos.length - 1];
+      if (ultimo && ultimo.horario === horario && Number(key) === Number(ultimo.ultimoKey) + 1) {
+        ultimo.fim = abrevDia[key];
+        ultimo.ultimoKey = key;
+      } else {
+        grupos.push({ inicio: abrevDia[key], fim: abrevDia[key], horario, ultimoKey: key });
+      }
+    });
+
+    const partes = grupos.map(g => {
+      const dia = g.inicio === g.fim ? g.inicio : `${g.inicio}-${g.fim}`;
+      return `${dia}: ${g.horario}`;
+    });
+
+    // Adicionar intervalo se existir (pega do primeiro dia ativo)
+    const primeiroDia = diasAtivos[0]?.[1];
+    if (primeiroDia?.almoco_inicio && primeiroDia?.almoco_fim) {
+      partes.push(`intervalo ${primeiroDia.almoco_inicio}-${primeiroDia.almoco_fim}`);
+    }
+
+    return partes.join(' | ');
+  };
+
   const salvarHorarios = async () => {
     setSalvandoHorarios(true);
     try {
@@ -454,7 +488,11 @@ export default function ConfiguracoesPage() {
       if (!session) { showToast('Sessão expirada', 'erro'); return; }
       const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('id', session.user.id).maybeSingle();
       if (!role?.clinica_id) { showToast('Clínica não encontrada', 'erro'); return; }
-      const { error } = await supabase.from('clinicas').update({ horarios_funcionamento: horarios }).eq('id', role.clinica_id);
+      const horario_atendimento = gerarTextoHorario(horarios);
+      const { error } = await supabase.from('clinicas').update({
+        horarios_funcionamento: horarios,
+        horario_atendimento,
+      }).eq('id', role.clinica_id);
       if (error) throw error;
       showToast('Horários salvos com sucesso!');
     } catch (e) {
