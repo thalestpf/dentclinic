@@ -21,12 +21,13 @@ export async function GET(request) {
   const clinicaId = searchParams.get('clinica_id');
   const dentistaNome = searchParams.get('dentista_nome') || null;
 
-  const hoje = new Date();
+  const agora = new Date();
+  const hoje = new Date(agora);
   hoje.setHours(0, 0, 0, 0);
 
   const resultado = [];
 
-  for (let i = 1; i <= dias; i++) {
+  for (let i = 0; i <= dias; i++) {
     const data = new Date(hoje);
     data.setDate(hoje.getDate() + i);
 
@@ -36,6 +37,16 @@ export async function GET(request) {
     const dataISO = data.toISOString().split('T')[0];
     const dataBR = `${String(data.getDate()).padStart(2,'0')}/${String(data.getMonth()+1).padStart(2,'0')}`;
     const diaSemana = DIAS_SEMANA[data.getDay()];
+
+    // Para hoje, filtrar horários que já passaram (+ 30 min de antecedência)
+    let horariosBase = HORARIOS;
+    if (i === 0) {
+      const minAtual = agora.getHours() * 60 + agora.getMinutes();
+      horariosBase = HORARIOS.filter(h => {
+        const [hh, mm] = h.split(':').map(Number);
+        return (hh * 60 + mm) > minAtual + 30;
+      });
+    }
 
     // Buscar horários já ocupados
     let query = supabaseAdmin
@@ -49,7 +60,7 @@ export async function GET(request) {
 
     const { data: ocupados } = await query;
     const horasOcupadas = (ocupados || []).map(a => a.hora.substring(0, 5));
-    const disponiveis = HORARIOS.filter(h => !horasOcupadas.includes(h));
+    const disponiveis = horariosBase.filter(h => !horasOcupadas.includes(h));
 
     if (disponiveis.length > 0) {
       resultado.push({ data: dataISO, data_br: dataBR, dia_semana: diaSemana, horarios: disponiveis });
