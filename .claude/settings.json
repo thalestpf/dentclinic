@@ -54,7 +54,8 @@
       "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);j.forEach\\(d=>console.log\\(d.dia_semana, d.data_br, '-', d.horarios.length, 'horários'\\)\\)}\\)\")",
       "Bash(node h:/tmp/fix_workflow.js)",
       "Bash(curl -s -X PUT https://n8n.geraresistemas.com.br/api/v1/workflows/jACb0zILelzezeKZ -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1NzEyNzkwfQ.Q2ZvNhRM1ExGp4UbKFISV_S5RhhjNwQnsOK3hBScDU4' -H 'Content-Type: application/json' -d @h:/tmp/wf_fix.json)",
-      "mcp__n8n__search_nodes"
+      "mcp__n8n__search_nodes",
+      "Read(//h/Aplicativos/n8n-templates/n8n-workflows/workflows/**)"
     ],
     "additionalDirectories": [
       "\\tmp",
