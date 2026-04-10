@@ -1,784 +1,841 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, PageHeader, Button } from '../../../components/UI';
 import { useAgendamento } from '@/app/hooks/useAgendamento';
 import { supabase } from '@/lib/supabase-client';
 
-const blockColors = {
-  green:  { background: '#D4EDDA', color: '#155724' },
-  yellow: { background: '#FFF3CD', color: '#856404' },
-  blue:   { background: '#D1ECF1', color: '#0C5460' },
-  purple: { background: '#E2D9F3', color: '#432874' },
-  red:    { background: '#F8D7DA', color: '#721C24' },
-};
+// Paleta de cores por dentista (índice)
+const DENTIST_PALETTE = [
+  { bg: '#D4EDDA', text: '#155724', border: '#C3E6CB' },
+  { bg: '#D1ECF1', text: '#0C5460', border: '#BEE5EB' },
+  { bg: '#E2D9F3', text: '#432874', border: '#D4BFEE' },
+  { bg: '#FFF3CD', text: '#856404', border: '#FFE69C' },
+  { bg: '#F8D7DA', text: '#721C24', border: '#F5C6CB' },
+  { bg: '#D4E6FF', text: '#0A4FA8', border: '#B8D4FF' },
+  { bg: '#FFE5CC', text: '#8B4000', border: '#FFD0A0' },
+  { bg: '#E8F4E8', text: '#1B6B1B', border: '#C8E6C8' },
+];
 
-const statusColors = {
-  confirmado: { background: '#E8F5E9', color: '#27AE60' },
-  pendente:   { background: '#FFF9E6', color: '#F39C12' },
-};
-
-const colorOptions = ['green', 'blue', 'purple', 'yellow', 'red'];
-const procedures = ['Limpeza Profissional', 'Tratamento de Canal', 'Restauração', 'Implante', 'Clareamento', 'Ortodontia', 'Extração', 'Revisão', 'Emergência'];
-const dentists = ['Dra. Silva', 'Dr. Rocha', 'Dr. João'];
-const statuses = ['confirmado', 'pendente'];
-const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const DAY_NAMES_FULL = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DAY_NAMES     = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const DAY_NAMES_FULL = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+const MONTH_NAMES   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const BLOQUEIOS_KEY = 'agenda_bloqueios';
+const HORA_INICIO   = 7;   // 07:00
+const HORA_FIM      = 20;  // 20:00
+const PX_POR_MIN    = 1.2; // 60 min * 1.2 = 72px por hora
 
-function toISO(date) {
-  return date.toISOString().split('T')[0];
-}
+const procedures = ['Limpeza Profissional','Tratamento de Canal','Restauração','Implante','Clareamento','Ortodontia','Extração','Revisão','Emergência','Consulta'];
+const statuses   = ['confirmado','pendente'];
+
+function toISO(date) { return date.toISOString().split('T')[0]; }
 
 function getMondayOfWeek(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
+  const d = new Date(date); d.setHours(0,0,0,0);
   const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
   return d;
 }
 
-function calcDayTop(dateStr, hora, baseDate) {
-  const selected = new Date(dateStr + 'T00:00:00');
-  const diff = Math.round((selected - baseDate) / (1000 * 60 * 60 * 24));
-  if (diff < 0 || diff > 5) return null;
-  const [h, m] = hora.split(':').map(Number);
-  return { day: diff, top: (h - 8) * 60 + m };
-}
+function horaParaMin(h) { const [hh,mm] = h.split(':').map(Number); return hh*60+mm; }
+function minParaHora(m) { return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
+function topPx(hora)   { return (horaParaMin(hora) - HORA_INICIO*60) * PX_POR_MIN; }
+const TOTAL_HEIGHT = (HORA_FIM - HORA_INICIO) * 60 * PX_POR_MIN;
+const HOURS_LABELS = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, i) => minParaHora((HORA_INICIO + i)*60));
 
-function generateRandomPhone() {
-  const area = String(Math.floor(Math.random() * 99) + 1).padStart(2, '0');
-  const first = String(Math.floor(Math.random() * 99999) + 1).padStart(5, '0');
-  const last = String(Math.floor(Math.random() * 9999) + 1).padStart(4, '0');
-  return `(${area}) ${first}-${last}`;
-}
+// Calcula posições lado a lado para agendamentos que se sobrepõem no mesmo "slot" (coluna)
+function calcularOverlap(appts) {
+  if (!appts.length) return appts;
+  const sorted = [...appts].sort((a,b) => horaParaMin(a.hora) - horaParaMin(b.hora));
+  const resultado = sorted.map(a => ({ ...a, col: 0, totalCols: 1 }));
 
-function generateRandomAge() {
-  return String(Math.floor(Math.random() * 60) + 18) + ' anos';
+  for (let i = 0; i < resultado.length; i++) {
+    const fimI = horaParaMin(resultado[i].hora) + 60;
+    const grupo = [resultado[i]];
+    for (let j = i+1; j < resultado.length; j++) {
+      if (horaParaMin(resultado[j].hora) < fimI) grupo.push(resultado[j]);
+    }
+    if (grupo.length > 1) {
+      grupo.forEach((a, idx) => { a.col = idx; a.totalCols = grupo.length; });
+    }
+  }
+  return resultado;
 }
 
 export default function Agenda() {
   const hoje = toISO(new Date());
 
-  const [semanaAtual, setSemanaAtual] = useState(() => getMondayOfWeek(new Date()));
+  // ── State principal
+  const [semanaAtual, setSemanaAtual]     = useState(() => getMondayOfWeek(new Date()));
+  const [diaSelecionado, setDiaSelecionado] = useState(hoje);
+  const [view, setView]                   = useState('Semana');
   const [agendamentosRaw, setAgendamentosRaw] = useState([]);
-  const [agendamentos, setAgendamentos] = useState([]);
-  const [view, setView] = useState('Semana');
+  const [clinicaId, setClinicaId]         = useState(null);
+
+  // Dentistas da clínica
+  const [dentistasClinica, setDentistasClinica] = useState([]);
+  const [dentistasFiltro, setDentistasFiltro]   = useState(new Set()); // vazio = todos
+
+  // Mini calendário
+  const [miniMes, setMiniMes] = useState(() => { const h=new Date(); return { year: h.getFullYear(), month: h.getMonth() }; });
   const [pacientesCadastrados, setPacientesCadastrados] = useState([]);
-  const [sugestoesPaciente, setSugestoesPaciente] = useState([]);
-  const [miniMes, setMiniMes] = useState(() => {
-    const hoje = new Date();
-    return { year: hoje.getFullYear(), month: hoje.getMonth() };
+  const [sugestoesPaciente, setSugestoesPaciente]       = useState([]);
+
+  // Modal agendamento
+  const [novoModal, setNovoModal]         = useState(false);
+  const [editingId, setEditingId]         = useState(null);
+  const [selected, setSelected]           = useState(null);
+  const [feedback, setFeedback]           = useState(null); // {msg, tipo}
+  const [formData, setFormData]           = useState({
+    paciente:'', cpf:'', email:'', telefone:'',
+    data: hoje, hora:'08:00', procedimento:'Limpeza Profissional',
+    dentista:'', observacoes:'', status:'confirmado',
   });
-  const [selected, setSelected] = useState(null);
-  const [novoModal, setNovoModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [mensagemFeedback, setMensagemFeedback] = useState(null);
-  const [tipoFeedback, setTipoFeedback] = useState(null);
-  const [bloqueios, setBloqueios] = useState({ diasSemana: [], datas: [], horarios: [] });
-  const [modalBloqueio, setModalBloqueio] = useState(false);
-  const [novaDataBloqueio, setNovaDataBloqueio] = useState('');
-  const [novoHorarioBloqueio, setNovoHorarioBloqueio] = useState({ data: '', inicio: '11:00', fim: '14:00', motivo: '' });
+
+  // Modal bloqueio
+  const [modalBloqueio, setModalBloqueio]         = useState(false);
+  const [bloqueios, setBloqueios]                 = useState({ diasSemana:[], datas:[], horarios:[] });
+  const [novaDataBloqueio, setNovaDataBloqueio]   = useState('');
+  const [novoHorarioBloqueio, setNovoHorarioBloqueio] = useState({ data:'', inicio:'11:00', fim:'14:00', motivo:'' });
 
   const { criarAgendamento, atualizarAgendamento, deletarAgendamento, obterAgendamentos, carregando } = useAgendamento();
 
-  const [formData, setFormData] = useState({
-    paciente: '', cpf: '', email: '', telefone: '',
-    data: hoje, hora: '08:00',
-    procedimento: 'Limpeza Profissional', dentista: 'Dra. Silva',
-    observacoes: '', status: 'confirmado', color: 'green'
-  });
+  const showFeedback = (msg, tipo='sucesso') => {
+    setFeedback({ msg, tipo });
+    setTimeout(() => setFeedback(null), 3000);
+  };
 
-  // Semana: segunda a sábado
-  const days = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(semanaAtual);
-    d.setDate(semanaAtual.getDate() + i);
-    return {
-      name: DAY_NAMES[d.getDay()],
-      num: String(d.getDate()).padStart(2, '0'),
-      date: toISO(d),
-      today: toISO(d) === hoje,
+  // ── Carregar clínica, dentistas e agendamentos
+  useEffect(() => {
+    const init = async () => {
+      // Clinica via API (não usa Supabase Auth)
+      try {
+        const res = await fetch('/api/clinica');
+        const cls = await res.json();
+        if (cls?.[0]?.id) setClinicaId(cls[0].id);
+      } catch {}
+
+      // Agendamentos
+      const raw = await obterAgendamentos();
+      setAgendamentosRaw(raw);
+
+      // Pacientes para autocomplete
+      supabase.from('pacientes').select('id,nome,cpf,email,telefone').order('nome')
+        .then(({ data }) => { if (data) setPacientesCadastrados(data); });
+
+      // Bloqueios no localStorage
+      const saved = localStorage.getItem(BLOQUEIOS_KEY);
+      if (saved) setBloqueios(JSON.parse(saved));
     };
-  });
+    init();
+  }, [obterAgendamentos]);
 
-  const semanaFim = new Date(semanaAtual);
-  semanaFim.setDate(semanaAtual.getDate() + 5);
-  const weekLabel = `${semanaAtual.getDate()} – ${semanaFim.getDate()} de ${MONTH_NAMES[semanaFim.getMonth()]}, ${semanaFim.getFullYear()}`;
-  const weekSubtitle = `Semana de ${semanaAtual.getDate()} a ${semanaFim.getDate()} de ${MONTH_NAMES[semanaFim.getMonth()]}`;
+  useEffect(() => {
+    if (!clinicaId) return;
+    supabase.from('dentistas')
+      .select('id,nome,especialidade')
+      .eq('clinica_id', clinicaId)
+      .eq('status','ativo')
+      .order('nome')
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setDentistasClinica(data);
+        } else {
+          // Fallback: dentistas únicos nos agendamentos
+          const nomes = [...new Set(agendamentosRaw.map(a => a.dentistaNome).filter(Boolean))];
+          setDentistasClinica(nomes.map((nome, i) => ({ id: String(i), nome })));
+        }
+      });
+  }, [clinicaId, agendamentosRaw]);
 
-  const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
-
-  // Mini calendário dinâmico (navegável independente)
-  const miniYear = miniMes.year;
-  const miniMonth = miniMes.month;
-  const miniFirstDay = new Date(miniYear, miniMonth, 1).getDay();
-  const miniDaysInMonth = new Date(miniYear, miniMonth + 1, 0).getDate();
-
-  const irMesAnterior = () => setMiniMes(prev => {
-    if (prev.month === 0) return { year: prev.year - 1, month: 11 };
-    return { year: prev.year, month: prev.month - 1 };
-  });
-
-  const irProximoMes = () => setMiniMes(prev => {
-    if (prev.month === 11) return { year: prev.year + 1, month: 0 };
-    return { year: prev.year, month: prev.month + 1 };
-  });
-
-  const irParaSemanaDoMiniDia = (dia) => {
-    const data = new Date(miniYear, miniMonth, dia);
-    setSemanaAtual(getMondayOfWeek(data));
-  };
-  const appointmentDates = new Set(agendamentosRaw.map(a => a.data));
-
-  const miniCells = [];
-  for (let i = 0; i < miniFirstDay; i++) miniCells.push({ empty: true });
-  for (let d = 1; d <= miniDaysInMonth; d++) {
-    const ds = `${miniYear}-${String(miniMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    miniCells.push({ d: String(d), today: ds === hoje, dot: appointmentDates.has(ds) });
-  }
-
-  const horaParaMin = (h) => { const [hh, mm] = h.split(':').map(Number); return hh * 60 + mm; };
-
-  const isDiaBloqueado = (dateStr) => {
-    if (!dateStr) return false;
-    const diaSemana = new Date(dateStr + 'T00:00:00').getDay();
-    return bloqueios.diasSemana.includes(diaSemana) || bloqueios.datas.includes(dateStr);
-  };
-
+  // ── Helpers de bloqueio
+  const salvarBloqueios = (novos) => { localStorage.setItem(BLOQUEIOS_KEY, JSON.stringify(novos)); setBloqueios(novos); };
+  const isDiaBloqueado  = (ds) => { if (!ds) return false; const d = new Date(ds+'T00:00:00').getDay(); return bloqueios.diasSemana.includes(d) || bloqueios.datas.includes(ds); };
   const isHorarioBloqueado = (data, hora) => {
-    if (!data || !hora) return false;
     const min = horaParaMin(hora);
-    return (bloqueios.horarios || []).some(b =>
-      b.data === data && horaParaMin(b.inicio) <= min && min < horaParaMin(b.fim)
+    return (bloqueios.horarios||[]).some(b => b.data===data && horaParaMin(b.inicio)<=min && min<horaParaMin(b.fim));
+  };
+  const toggleDiaSemana   = (d) => { const a=bloqueios.diasSemana; salvarBloqueios({...bloqueios, diasSemana: a.includes(d)?a.filter(x=>x!==d):[...a,d]}); };
+  const removerDataBloqueio = (d) => salvarBloqueios({...bloqueios, datas: bloqueios.datas.filter(x=>x!==d)});
+  const adicionarDataBloqueio = () => {
+    if (!novaDataBloqueio||bloqueios.datas.includes(novaDataBloqueio)) return;
+    salvarBloqueios({...bloqueios, datas:[...bloqueios.datas,novaDataBloqueio].sort()});
+    setNovaDataBloqueio('');
+  };
+  const adicionarHorarioBloqueio = () => {
+    const {data,inicio,fim,motivo}=novoHorarioBloqueio;
+    if(!data||!inicio||!fim||horaParaMin(inicio)>=horaParaMin(fim)) return;
+    salvarBloqueios({...bloqueios, horarios:[...(bloqueios.horarios||[]),{data,inicio,fim,motivo}].sort((a,b)=>a.data.localeCompare(b.data)||a.inicio.localeCompare(b.inicio))});
+    setNovoHorarioBloqueio(p=>({...p,data:'',motivo:''}));
+  };
+  const removerHorarioBloqueio = (idx) => salvarBloqueios({...bloqueios, horarios:(bloqueios.horarios||[]).filter((_,i)=>i!==idx)});
+
+  // ── Cor do dentista
+  const corDentista = useCallback((nome) => {
+    const idx = dentistasClinica.findIndex(d => d.nome === nome);
+    return DENTIST_PALETTE[idx >= 0 ? idx % DENTIST_PALETTE.length : 0];
+  }, [dentistasClinica]);
+
+  // ── Agendamentos do dia selecionado
+  const agendamentosDoDia = (dataISO, dentistaNome = null) => {
+    return agendamentosRaw.filter(a =>
+      a.data === dataISO &&
+      (!dentistaNome || a.dentistaNome === dentistaNome) &&
+      (dentistasFiltro.size === 0 || dentistasFiltro.has(a.dentistaNome))
     );
   };
 
-  const getHorariosBloqueadosNoDia = (dateStr) => {
-    return (bloqueios.horarios || []).filter(b => b.data === dateStr);
+  // ── Mini calendário
+  const miniYear = miniMes.year; const miniMonth = miniMes.month;
+  const miniFirstDay = new Date(miniYear, miniMonth, 1).getDay();
+  const miniDaysInMonth = new Date(miniYear, miniMonth+1, 0).getDate();
+  const appointmentDates = new Set(agendamentosRaw.map(a => a.data));
+  const miniCells = [];
+  for (let i=0;i<miniFirstDay;i++) miniCells.push({empty:true});
+  for (let d=1;d<=miniDaysInMonth;d++) {
+    const ds=`${miniYear}-${String(miniMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    miniCells.push({d:String(d),today:ds===hoje,dot:appointmentDates.has(ds),ds});
+  }
+  const irMesAnterior = () => setMiniMes(p => p.month===0?{year:p.year-1,month:11}:{...p,month:p.month-1});
+  const irProximoMes  = () => setMiniMes(p => p.month===11?{year:p.year+1,month:0}:{...p,month:p.month+1});
+  const clicarDiaMini = (ds) => {
+    setDiaSelecionado(ds);
+    if (view === 'Semana') setSemanaAtual(getMondayOfWeek(new Date(ds+'T00:00:00')));
+    else setView('Dia');
   };
 
-  const salvarBloqueios = (novos) => {
-    localStorage.setItem(BLOQUEIOS_KEY, JSON.stringify(novos));
-    setBloqueios(novos);
-  };
+  // ── Semana: dias Seg-Sab
+  const days = Array.from({length:6},(_,i)=>{
+    const d=new Date(semanaAtual); d.setDate(semanaAtual.getDate()+i);
+    return { name:DAY_NAMES[d.getDay()], num:String(d.getDate()).padStart(2,'0'), date:toISO(d), today:toISO(d)===hoje };
+  });
+  const semanaFim = new Date(semanaAtual); semanaFim.setDate(semanaAtual.getDate()+5);
+  const weekLabel = `${semanaAtual.getDate()} – ${semanaFim.getDate()} de ${MONTH_NAMES[semanaFim.getMonth()]}, ${semanaFim.getFullYear()}`;
 
-  const toggleDiaSemana = (dia) => {
-    const atual = bloqueios.diasSemana;
-    const novos = atual.includes(dia) ? atual.filter(d => d !== dia) : [...atual, dia];
-    salvarBloqueios({ ...bloqueios, diasSemana: novos });
-  };
-
-  const adicionarDataBloqueio = () => {
-    if (!novaDataBloqueio || bloqueios.datas.includes(novaDataBloqueio)) return;
-    salvarBloqueios({ ...bloqueios, datas: [...bloqueios.datas, novaDataBloqueio].sort() });
-    setNovaDataBloqueio('');
-  };
-
-  const removerDataBloqueio = (data) => {
-    salvarBloqueios({ ...bloqueios, datas: bloqueios.datas.filter(d => d !== data) });
-  };
-
-  const adicionarHorarioBloqueio = () => {
-    const { data, inicio, fim, motivo } = novoHorarioBloqueio;
-    if (!data || !inicio || !fim) return;
-    if (horaParaMin(inicio) >= horaParaMin(fim)) return;
-    const novos = [...(bloqueios.horarios || []), { data, inicio, fim, motivo }]
-      .sort((a, b) => a.data.localeCompare(b.data) || a.inicio.localeCompare(b.inicio));
-    salvarBloqueios({ ...bloqueios, horarios: novos });
-    setNovoHorarioBloqueio(prev => ({ ...prev, data: '', motivo: '' }));
-  };
-
-  const removerHorarioBloqueio = (idx) => {
-    const novos = (bloqueios.horarios || []).filter((_, i) => i !== idx);
-    salvarBloqueios({ ...bloqueios, horarios: novos });
-  };
-
-  // Carregar agendamentos e pacientes cadastrados
-  useEffect(() => {
-    const carregar = async () => {
-      const raw = await obterAgendamentos();
-      setAgendamentosRaw(raw);
-    };
-    carregar();
-    supabase.from('pacientes').select('id, nome, cpf, email, telefone').order('nome').then(({ data }) => {
-      if (data) setPacientesCadastrados(data);
-    });
-    const savedBloqueios = localStorage.getItem(BLOQUEIOS_KEY);
-    if (savedBloqueios) setBloqueios(JSON.parse(savedBloqueios));
-  }, [obterAgendamentos]);
-
-  const handlePacienteDigitado = (valor) => {
-    setFormData(prev => ({ ...prev, paciente: valor }));
-    if (valor.length >= 2) {
-      const sugs = pacientesCadastrados.filter(p => p.nome.toLowerCase().includes(valor.toLowerCase())).slice(0, 5);
-      setSugestoesPaciente(sugs);
-    } else {
-      setSugestoesPaciente([]);
-    }
-  };
-
-  const selecionarPacienteCadastrado = (p) => {
-    setFormData(prev => ({ ...prev, paciente: p.nome, cpf: p.cpf || '', email: p.email || '', telefone: p.telefone || '' }));
-    setSugestoesPaciente([]);
-  };
-
-  // Re-mapear quando semana ou dados mudam
-  useEffect(() => {
-    const mapeados = agendamentosRaw
-      .map(a => {
-        const pos = calcDayTop(a.data, a.hora, semanaAtual);
-        if (!pos) return null;
-        return {
-          id: a.id,
-          day: pos.day, top: pos.top, h: 52,
-          color: a.color || 'green',
-          name: a.pacienteNome,
-          proc: `${a.hora} · ${a.procedimento}`,
-          hora: a.hora, date: a.data,
-          procedimento: a.procedimento,
-          dentista: a.dentistaNome || 'Não informado',
-          age: generateRandomAge(),
-          phone: generateRandomPhone(),
-          status: a.status || 'confirmado',
-          notes: a.observacoes || '',
-          pacienteEmail: a.pacienteEmail,
-          pacienteTelefone: a.pacienteTelefone,
-        };
-      })
-      .filter(Boolean);
-    setAgendamentos(mapeados);
-  }, [agendamentosRaw, semanaAtual]);
-
-  const irSemanaAnterior = () => {
-    setSemanaAtual(prev => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 7);
-      return d;
-    });
-  };
-
-  const irProximaSemana = () => {
-    setSemanaAtual(prev => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 7);
-      return d;
-    });
-  };
-
-  const handleNovoClick = () => {
+  // ── Handlers do formulário
+  const handleNovoClick = (dataPreench = null, horaPreench = null, dentista = '') => {
     setEditingId(null);
-    setFormData({ paciente: '', cpf: '', email: '', telefone: '', data: hoje, hora: '08:00', procedimento: 'Limpeza Profissional', dentista: 'Dra. Silva', observacoes: '', status: 'confirmado', color: 'green' });
+    setFormData({
+      paciente:'', cpf:'', email:'', telefone:'',
+      data: dataPreench || (view==='Dia' ? diaSelecionado : hoje),
+      hora: horaPreench || '08:00',
+      procedimento:'Limpeza Profissional',
+      dentista: dentista || (dentistasClinica[0]?.nome || ''),
+      observacoes:'', status:'confirmado',
+    });
     setNovoModal(true);
   };
 
-  const handleSaveAgendamento = async () => {
-    if (!formData.paciente.trim() || !formData.data || !formData.hora) {
-      setMensagemFeedback('Por favor, preencha nome do paciente, data e hora');
-      setTipoFeedback('erro');
-      setTimeout(() => setMensagemFeedback(null), 3000);
-      return;
-    }
-    if (isDiaBloqueado(formData.data)) {
-      setMensagemFeedback('Esta data está bloqueada. O dentista não atende neste dia.');
-      setTipoFeedback('erro');
-      setTimeout(() => setMensagemFeedback(null), 4000);
-      return;
-    }
-    if (isHorarioBloqueado(formData.data, formData.hora)) {
-      const bloqueo = (bloqueios.horarios || []).find(b =>
-        b.data === formData.data && horaParaMin(b.inicio) <= horaParaMin(formData.hora) && horaParaMin(formData.hora) < horaParaMin(b.fim)
-      );
-      setMensagemFeedback(`Horário bloqueado das ${bloqueo.inicio} às ${bloqueo.fim}${bloqueo.motivo ? ` — ${bloqueo.motivo}` : ''}.`);
-      setTipoFeedback('erro');
-      setTimeout(() => setMensagemFeedback(null), 4000);
-      return;
-    }
+  const handlePacienteDigitado = (v) => {
+    setFormData(p=>({...p,paciente:v}));
+    if(v.length>=2) setSugestoesPaciente(pacientesCadastrados.filter(p=>p.nome.toLowerCase().includes(v.toLowerCase())).slice(0,5));
+    else setSugestoesPaciente([]);
+  };
 
-    const dadosAgendamento = {
+  const handleSaveAgendamento = async () => {
+    if (!formData.paciente.trim()||!formData.data||!formData.hora) {
+      showFeedback('Preencha paciente, data e hora','erro'); return;
+    }
+    if (isDiaBloqueado(formData.data)) { showFeedback('Data bloqueada na agenda','erro'); return; }
+    if (isHorarioBloqueado(formData.data,formData.hora)) { showFeedback('Horário bloqueado','erro'); return; }
+
+    const dados = {
       id: editingId,
       pacienteNome: formData.paciente,
-      pacienteEmail: formData.email || null,
-      pacienteTelefone: formData.telefone || null,
-      pacienteCpf: formData.cpf || null,
-      data: formData.data,
-      hora: formData.hora,
+      pacienteEmail: formData.email||null,
+      pacienteTelefone: formData.telefone||null,
+      pacienteCpf: formData.cpf||null,
+      data: formData.data, hora: formData.hora,
       procedimento: formData.procedimento,
       dentistaNome: formData.dentista,
       observacoes: formData.observacoes,
       status: formData.status,
-      color: formData.color,
+      color: 'green',
     };
 
-    let resultado;
-    if (editingId) {
-      resultado = await atualizarAgendamento(editingId, dadosAgendamento);
-    } else {
-      resultado = await criarAgendamento(dadosAgendamento);
-    }
+    const resultado = editingId ? await atualizarAgendamento(editingId, dados) : await criarAgendamento(dados);
 
     if (resultado.sucesso) {
-      setMensagemFeedback(resultado.mensagem);
-      setTipoFeedback('sucesso');
-
-      // Recarregar da base para garantir consistência
+      showFeedback(resultado.mensagem);
       const raw = await obterAgendamentos();
       setAgendamentosRaw(raw);
-
-      setTimeout(() => {
-        setMensagemFeedback(null);
-        setNovoModal(false);
-        setSelected(null);
-        setEditingId(null);
-      }, 1500);
+      setTimeout(()=>{ setNovoModal(false); setSelected(null); setEditingId(null); },1200);
     } else {
-      setMensagemFeedback(resultado.mensagem);
-      setTipoFeedback('erro');
-      setTimeout(() => setMensagemFeedback(null), 4000);
+      showFeedback(resultado.mensagem,'erro');
     }
   };
 
-  const handleEditAgendamento = (agendamento) => {
-    setEditingId(agendamento.id);
+  const handleEditAgendamento = (a) => {
+    setEditingId(a.id);
     setFormData({
-      paciente: agendamento.name,
-      cpf: agendamento.pacienteCpf || '',
-      email: agendamento.pacienteEmail || '',
-      telefone: agendamento.pacienteTelefone || '',
-      data: agendamento.date,
-      hora: agendamento.hora,
-      procedimento: agendamento.procedimento,
-      dentista: agendamento.dentista,
-      observacoes: agendamento.notes,
-      status: agendamento.status,
-      color: agendamento.color
+      paciente: a.pacienteNome, cpf: a.pacienteCpf||'',
+      email: a.pacienteEmail||'', telefone: a.pacienteTelefone||'',
+      data: a.data, hora: a.hora, procedimento: a.procedimento,
+      dentista: a.dentistaNome||'', observacoes: a.observacoes||'', status: a.status||'confirmado',
     });
+    setSelected(null);
     setNovoModal(true);
   };
 
   const handleDeleteAgendamento = async (id) => {
-    if (confirm('Tem certeza que deseja cancelar este agendamento?')) {
-      const resultado = await deletarAgendamento(id);
-      if (resultado.sucesso) {
-        const raw = await obterAgendamentos();
-        setAgendamentosRaw(raw);
-        setMensagemFeedback('Agendamento cancelado com sucesso');
-        setTipoFeedback('sucesso');
-        setTimeout(() => { setMensagemFeedback(null); setSelected(null); }, 2000);
-      } else {
-        setMensagemFeedback('Erro ao cancelar agendamento');
-        setTipoFeedback('erro');
-        setTimeout(() => setMensagemFeedback(null), 3000);
-      }
+    if (!confirm('Cancelar este agendamento?')) return;
+    const resultado = await deletarAgendamento(id);
+    if (resultado.sucesso) {
+      const raw = await obterAgendamentos();
+      setAgendamentosRaw(raw);
+      setSelected(null);
+      showFeedback('Agendamento cancelado');
+    } else {
+      showFeedback('Erro ao cancelar','erro');
     }
   };
 
-  const upcoming = agendamentos.filter(a => a.date === hoje).slice(0, 4);
+  // ── Vista semanal — corpo do calendário
+  const renderWeekView = () => {
+    const dentistasVisiveis = dentistasClinica.filter(d => dentistasFiltro.size===0 || dentistasFiltro.has(d.nome));
+
+    return (
+      <div style={s.calWrap}>
+        {/* Header dias */}
+        <div style={{ display:'grid', gridTemplateColumns:`64px repeat(6, 1fr)`, borderBottom:'1.5px solid #EFEFEF', position:'sticky', top:0, background:'#fff', zIndex:10 }}>
+          <div style={{ padding:16, borderRight:'1px solid #F0F0F0' }} />
+          {days.map(d => (
+            <div key={d.date}
+              style={{ padding:'14px 8px', textAlign:'center', borderRight:'1px solid #F0F0F0', background: isDiaBloqueado(d.date)?'#FFF8F8':'transparent', cursor:'pointer' }}
+              onClick={() => { setDiaSelecionado(d.date); setView('Dia'); }}
+            >
+              <div style={{ fontSize:11, color:'#AAA', textTransform:'uppercase', letterSpacing:'0.8px' }}>{d.name}</div>
+              <div style={{ fontSize:20, fontFamily:"'DM Serif Display',serif", lineHeight:1.2, marginTop:2, ...(d.today ? { background:'#A8D5C2', width:34, height:34, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'4px auto 0', fontSize:16 } : {}) }}>{d.num}</div>
+              {isDiaBloqueado(d.date) && <div style={{ fontSize:9, color:'#E74C3C', fontWeight:600, marginTop:2 }}>FECHADO</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Corpo */}
+        <div style={{ display:'flex', overflowY:'auto', maxHeight:520 }}>
+          {/* Coluna horas */}
+          <div style={{ width:64, flexShrink:0, borderRight:'1px solid #F0F0F0', position:'relative', height:TOTAL_HEIGHT }}>
+            {HOURS_LABELS.map((h,i) => (
+              <div key={h} style={{ position:'absolute', top: i*(60*PX_POR_MIN)-8, right:8, fontSize:10, color:'#CCC', lineHeight:1, whiteSpace:'nowrap' }}>{h}</div>
+            ))}
+          </div>
+
+          {/* Colunas dias */}
+          {days.map((d, di) => {
+            const apptsDia = agendamentosRaw.filter(a =>
+              a.data === d.date &&
+              (dentistasFiltro.size===0 || dentistasFiltro.has(a.dentistaNome))
+            );
+            const apptsPosicionados = calcularOverlap(apptsDia);
+            const bloqDia = (bloqueios.horarios||[]).filter(b => b.data===d.date);
+
+            return (
+              <div key={d.date} style={{ flex:1, position:'relative', borderRight:'1px solid #F0F0F0', height:TOTAL_HEIGHT, minWidth:0 }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget || e.target.classList.contains('hour-line')) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const minClicado = Math.round(y / PX_POR_MIN / 30) * 30 + HORA_INICIO*60;
+                    handleNovoClick(d.date, minParaHora(minClicado));
+                  }
+                }}
+              >
+                {/* Linhas de hora */}
+                {HOURS_LABELS.map((h,i) => (
+                  <div key={h} className="hour-line" style={{ position:'absolute', top: i*(60*PX_POR_MIN), left:0, right:0, borderBottom:'1px solid #F8F8F8', height:60*PX_POR_MIN, pointerEvents:'none' }} />
+                ))}
+
+                {/* Overlay fechado */}
+                {isDiaBloqueado(d.date) && (
+                  <div style={{ position:'absolute', inset:0, background:'repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(231,76,60,0.05) 8px,rgba(231,76,60,0.05) 16px)', zIndex:1, pointerEvents:'none' }} />
+                )}
+
+                {/* Bloqueios de horário */}
+                {bloqDia.map((b,bi) => {
+                  const t = (horaParaMin(b.inicio)-HORA_INICIO*60)*PX_POR_MIN;
+                  const h = (horaParaMin(b.fim)-horaParaMin(b.inicio))*PX_POR_MIN;
+                  return (
+                    <div key={bi} style={{ position:'absolute', left:2, right:2, top:t, height:h, background:'repeating-linear-gradient(45deg,#FFF5F5,#FFF5F5 4px,#FFEBEE 4px,#FFEBEE 8px)', border:'1px solid #FFCDD2', borderRadius:4, zIndex:2, overflow:'hidden', padding:'3px 5px', pointerEvents:'none' }}>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#C0392B' }}>Bloqueado {b.inicio}–{b.fim}</div>
+                      {b.motivo && <div style={{ fontSize:9, color:'#888' }}>{b.motivo}</div>}
+                    </div>
+                  );
+                })}
+
+                {/* Agendamentos */}
+                {apptsPosicionados.map(a => {
+                  const cor = corDentista(a.dentistaNome);
+                  const t = topPx(a.hora);
+                  const largura = `calc(${100/a.totalCols}% - 4px)`;
+                  const esquerda = `calc(${(a.col/a.totalCols)*100}% + 2px)`;
+                  return (
+                    <div key={a.id}
+                      style={{ position:'absolute', top:t, left:esquerda, width:largura, height: 60*PX_POR_MIN - 3, background:cor.bg, color:cor.text, border:`1.5px solid ${cor.border}`, borderRadius:6, padding:'5px 7px', cursor:'pointer', overflow:'hidden', zIndex:3, boxSizing:'border-box' }}
+                      onClick={e => { e.stopPropagation(); setSelected(a); }}
+                    >
+                      <div style={{ fontSize:11, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.pacienteNome}</div>
+                      <div style={{ fontSize:10, opacity:0.8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.hora} · {a.dentistaNome}</div>
+                      <div style={{ fontSize:9, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.procedimento}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Vista dia — colunas por dentista
+  const renderDayView = () => {
+    const diaObj = new Date(diaSelecionado+'T00:00:00');
+    const diaLabel = `${DAY_NAMES_FULL[diaObj.getDay()]}, ${diaObj.getDate()} de ${MONTH_NAMES[diaObj.getMonth()]}`;
+    const bloqDia = (bloqueios.horarios||[]).filter(b => b.data===diaSelecionado);
+
+    // Dentistas com agendamentos hoje + todos os dentistas da clínica visíveis
+    const dentistasVisiveis = dentistasClinica.length > 0
+      ? dentistasClinica.filter(d => dentistasFiltro.size===0 || dentistasFiltro.has(d.nome))
+      : [];
+
+    // Se não há dentistas cadastrados ainda, montar a partir dos agendamentos do dia
+    const dentistasParaExibir = dentistasVisiveis.length > 0
+      ? dentistasVisiveis
+      : [...new Set(agendamentosRaw.filter(a=>a.data===diaSelecionado).map(a=>a.dentistaNome).filter(Boolean))].map((nome,i)=>({id:String(i),nome}));
+
+    return (
+      <div style={s.calWrap}>
+        {/* Header */}
+        <div style={{ display:'grid', gridTemplateColumns:`64px repeat(${dentistasParaExibir.length||1}, 1fr)`, borderBottom:'1.5px solid #EFEFEF', position:'sticky', top:0, background:'#fff', zIndex:10 }}>
+          <div style={{ padding:14, borderRight:'1px solid #F0F0F0', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ fontSize:10, color:'#AAA', textTransform:'uppercase' }}>Hora</span>
+          </div>
+          {dentistasParaExibir.length > 0 ? dentistasParaExibir.map((d,i) => {
+            const cor = DENTIST_PALETTE[i % DENTIST_PALETTE.length];
+            const agDentista = agendamentosRaw.filter(a=>a.data===diaSelecionado&&a.dentistaNome===d.nome);
+            return (
+              <div key={d.id} style={{ padding:'12px 8px', textAlign:'center', borderRight:'1px solid #F0F0F0', background:`${cor.bg}44` }}>
+                <div style={{ width:34, height:34, borderRadius:'50%', background:cor.bg, border:`2px solid ${cor.border}`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 6px', fontSize:13, fontWeight:700, color:cor.text }}>
+                  {d.nome.charAt(d.nome.lastIndexOf(' ')+1)||d.nome.charAt(0)}
+                </div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{d.nome}</div>
+                <div style={{ fontSize:10, color:'#AAA', marginTop:2 }}>{agDentista.length} {agDentista.length===1?'consulta':'consultas'}</div>
+                <button
+                  style={{ marginTop:6, padding:'3px 10px', fontSize:10, background:cor.bg, color:cor.text, border:`1px solid ${cor.border}`, borderRadius:12, cursor:'pointer', fontWeight:500 }}
+                  onClick={() => handleNovoClick(diaSelecionado,'08:00',d.nome)}
+                >
+                  + Agendar
+                </button>
+              </div>
+            );
+          }) : (
+            <div style={{ padding:20, textAlign:'center', color:'#AAA', fontSize:12 }}>Cadastre dentistas em Super Admin</div>
+          )}
+        </div>
+
+        {/* Corpo */}
+        <div style={{ display:'flex', overflowY:'auto', maxHeight:560 }}>
+          {/* Horas */}
+          <div style={{ width:64, flexShrink:0, borderRight:'1px solid #F0F0F0', position:'relative', height:TOTAL_HEIGHT }}>
+            {HOURS_LABELS.map((h,i) => (
+              <div key={h} style={{ position:'absolute', top: i*(60*PX_POR_MIN)-8, right:8, fontSize:10, color:'#CCC', lineHeight:1, whiteSpace:'nowrap' }}>{h}</div>
+            ))}
+          </div>
+
+          {/* Colunas por dentista */}
+          {dentistasParaExibir.map((dentista, di) => {
+            const cor = DENTIST_PALETTE[di % DENTIST_PALETTE.length];
+            const apptsD = agendamentosRaw.filter(a => a.data===diaSelecionado && a.dentistaNome===dentista.nome);
+
+            return (
+              <div key={dentista.id} style={{ flex:1, position:'relative', borderRight:'1px solid #F0F0F0', height:TOTAL_HEIGHT, minWidth:100, background: isDiaBloqueado(diaSelecionado)?'repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(231,76,60,0.03) 8px,rgba(231,76,60,0.03) 16px)':'transparent' }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget || e.target.classList.contains('hour-line-day')) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const minClicado = Math.round(y / PX_POR_MIN / 30) * 30 + HORA_INICIO*60;
+                    handleNovoClick(diaSelecionado, minParaHora(minClicado), dentista.nome);
+                  }
+                }}
+              >
+                {HOURS_LABELS.map((h,i) => (
+                  <div key={h} className="hour-line-day" style={{ position:'absolute', top: i*(60*PX_POR_MIN), left:0, right:0, borderBottom:'1px solid #F8F8F8', height:60*PX_POR_MIN, pointerEvents:'none' }} />
+                ))}
+
+                {/* Bloqueios de horário */}
+                {bloqDia.map((b,bi) => {
+                  const t=(horaParaMin(b.inicio)-HORA_INICIO*60)*PX_POR_MIN;
+                  const h=(horaParaMin(b.fim)-horaParaMin(b.inicio))*PX_POR_MIN;
+                  return (
+                    <div key={bi} style={{ position:'absolute', left:2, right:2, top:t, height:h, background:'repeating-linear-gradient(45deg,#FFF5F5,#FFF5F5 4px,#FFEBEE 4px,#FFEBEE 8px)', border:'1px solid #FFCDD2', borderRadius:4, zIndex:2, padding:'3px 5px', pointerEvents:'none' }}>
+                      <div style={{ fontSize:9, fontWeight:700, color:'#C0392B' }}>Bloqueado</div>
+                    </div>
+                  );
+                })}
+
+                {/* Agendamentos */}
+                {apptsD.map(a => {
+                  const t = topPx(a.hora);
+                  return (
+                    <div key={a.id}
+                      style={{ position:'absolute', left:3, right:3, top:t, height:60*PX_POR_MIN-4, background:cor.bg, color:cor.text, border:`1.5px solid ${cor.border}`, borderRadius:8, padding:'7px 9px', cursor:'pointer', overflow:'hidden', zIndex:3, boxSizing:'border-box' }}
+                      onClick={e => { e.stopPropagation(); setSelected(a); }}
+                    >
+                      <div style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.pacienteNome}</div>
+                      <div style={{ fontSize:11, opacity:0.85, marginTop:2 }}>{a.hora}</div>
+                      <div style={{ fontSize:10, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{a.procedimento}</div>
+                      <div style={{ position:'absolute', bottom:5, right:7 }}>
+                        <span style={{ fontSize:9, padding:'2px 6px', background:'rgba(255,255,255,0.6)', borderRadius:8, fontWeight:600 }}>{a.status}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Linha do horário atual (só hoje) */}
+                {diaSelecionado === hoje && (() => {
+                  const agora = new Date();
+                  const minAtual = agora.getHours()*60 + agora.getMinutes();
+                  const t = (minAtual - HORA_INICIO*60)*PX_POR_MIN;
+                  if (t<0||t>TOTAL_HEIGHT) return null;
+                  return <div style={{ position:'absolute', left:0, right:0, top:t, height:2, background:'#E74C3C', zIndex:4, pointerEvents:'none' }}>
+                    <div style={{ position:'absolute', left:-4, top:-4, width:10, height:10, borderRadius:'50%', background:'#E74C3C' }} />
+                  </div>;
+                })()}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Label da vista dia
+  const diaObj       = new Date(diaSelecionado+'T00:00:00');
+  const diaLabel     = `${DAY_NAMES_FULL[diaObj.getDay()]}, ${diaObj.getDate()} de ${MONTH_NAMES[diaObj.getMonth()]}`;
+  const diaAnterior  = () => { const d=new Date(diaSelecionado+'T00:00:00'); d.setDate(d.getDate()-1); setDiaSelecionado(toISO(d)); };
+  const diaProximo   = () => { const d=new Date(diaSelecionado+'T00:00:00'); d.setDate(d.getDate()+1); setDiaSelecionado(toISO(d)); };
+
+  const dentistasParaFiltro = dentistasClinica;
 
   return (
     <div style={s.main}>
-      <PageHeader title="Agenda" subtitle={weekSubtitle}>
-        <Button variant="ghost">Filtrar dentista</Button>
-        <Button variant="ghost" onClick={() => setModalBloqueio(true)}>
-          Bloquear Agenda
-        </Button>
-        <Button onClick={handleNovoClick} disabled={carregando}>
+      {/* Feedback global */}
+      {feedback && (
+        <div style={{ position:'fixed', top:24, right:24, zIndex:999, padding:'12px 20px', borderRadius:10, fontSize:13, fontWeight:500, background: feedback.tipo==='sucesso'?'#E8F5E9':'#FFEBEE', color: feedback.tipo==='sucesso'?'#27AE60':'#C62828', border:`1.5px solid ${feedback.tipo==='sucesso'?'#C8E6C9':'#FFCDD2'}`, boxShadow:'0 4px 16px rgba(0,0,0,0.12)' }}>
+          {feedback.tipo==='sucesso'?'✅':'❌'} {feedback.msg}
+        </div>
+      )}
+
+      <PageHeader title="Agenda" subtitle={view==='Semana' ? `Semana de ${semanaAtual.getDate()} a ${semanaFim.getDate()} de ${MONTH_NAMES[semanaFim.getMonth()]}` : diaLabel}>
+        <Button variant="ghost" onClick={() => setModalBloqueio(true)}>Bloquear Agenda</Button>
+        <Button onClick={() => handleNovoClick()} disabled={carregando}>
           {carregando ? '⏳ Processando...' : '+ Novo agendamento'}
         </Button>
       </PageHeader>
 
-      <div style={s.weekNav}>
-        <button style={s.navBtn} onClick={irSemanaAnterior}>&#8249;</button>
-        <span style={s.weekLabel}>{weekLabel}</span>
-        <button style={s.navBtn} onClick={irProximaSemana}>&#8250;</button>
-        <div style={s.viewTabs}>
-          {['Semana','Dia','Mês'].map(v => (
-            <div key={v} style={{ ...s.viewTab, ...(view === v ? s.viewTabActive : {}) }} onClick={() => setView(v)}>{v}</div>
+      {/* Barra de navegação + filtros */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+        {view === 'Semana' ? (
+          <>
+            <button style={s.navBtn} onClick={() => setSemanaAtual(p=>{const d=new Date(p);d.setDate(d.getDate()-7);return d;})}>&#8249;</button>
+            <span style={s.weekLabel}>{weekLabel}</span>
+            <button style={s.navBtn} onClick={() => setSemanaAtual(p=>{const d=new Date(p);d.setDate(d.getDate()+7);return d;})}>&#8250;</button>
+          </>
+        ) : (
+          <>
+            <button style={s.navBtn} onClick={diaAnterior}>&#8249;</button>
+            <span style={s.weekLabel}>{diaLabel}</span>
+            <button style={s.navBtn} onClick={diaProximo}>&#8250;</button>
+          </>
+        )}
+
+        {/* Filtro de dentistas */}
+        {dentistasParaFiltro.length > 0 && (
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginLeft:8 }}>
+            {dentistasParaFiltro.map((d,i) => {
+              const cor = DENTIST_PALETTE[i%DENTIST_PALETTE.length];
+              const ativo = dentistasFiltro.size===0 || dentistasFiltro.has(d.nome);
+              return (
+                <button key={d.id}
+                  style={{ padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:500, cursor:'pointer', border:`1.5px solid ${ativo?cor.border:'#E8E8E8'}`, background:ativo?cor.bg:'#fff', color:ativo?cor.text:'#AAA', transition:'all .15s' }}
+                  onClick={() => {
+                    setDentistasFiltro(prev => {
+                      const novo = new Set(prev);
+                      if (prev.size===0) { dentistasParaFiltro.forEach(x=>novo.add(x.nome)); novo.delete(d.nome); }
+                      else if (novo.has(d.nome)) { novo.delete(d.nome); if(novo.size===dentistasParaFiltro.length-1) return new Set(); }
+                      else { novo.add(d.nome); if(novo.size===dentistasParaFiltro.length) return new Set(); }
+                      return novo;
+                    });
+                  }}
+                >
+                  {d.nome}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tabs de vista */}
+        <div style={{ ...s.viewTabs, marginLeft:'auto' }}>
+          {['Semana','Dia'].map(v => (
+            <div key={v} style={{ ...s.viewTab, ...(view===v?s.viewTabActive:{}) }} onClick={()=>setView(v)}>{v}</div>
           ))}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={s.calWrap}>
-            <div style={s.calHead}>
-              <div style={s.headEmpty} />
-              {days.map(d => (
-                <div key={d.date} style={{ ...s.dayCol, ...(isDiaBloqueado(d.date) ? s.dayColBloqueado : {}) }}>
-                  <div style={s.dayName}>{d.name}</div>
-                  <div style={{ ...s.dayNum, ...(d.today ? s.dayNumToday : {}) }}>{d.num}</div>
-                  {isDiaBloqueado(d.date) && <div style={{ fontSize: 9, color: '#E74C3C', fontWeight: 600, marginTop: 2, letterSpacing: '0.4px' }}>FECHADO</div>}
-                </div>
-              ))}
-            </div>
-            <div style={{ ...s.calBody, maxHeight: 420, overflowY: 'auto' }}>
-              <div>
-                {hours.map(h => <div key={h} style={s.timeSlot}>{h}</div>)}
-              </div>
-              {days.map((d, di) => (
-                <div key={d.date} style={s.dayColBody}>
-                  {hours.map(h => <div key={h} style={s.hourLine} />)}
-                  {isDiaBloqueado(d.date) && (
-                    <div style={s.diaBloquedoOverlay}>
-                      <div style={s.diaBloquedoTexto}>Agenda Fechada</div>
-                    </div>
-                  )}
-                  {!isDiaBloqueado(d.date) && getHorariosBloqueadosNoDia(d.date).map((b, bi) => {
-                    const topPx = horaParaMin(b.inicio) - 8 * 60;
-                    const heightPx = horaParaMin(b.fim) - horaParaMin(b.inicio);
-                    return (
-                      <div key={bi} style={{ ...s.horarioBloqueadoBlock, top: topPx, height: heightPx }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#C0392B' }}>Bloqueado</div>
-                        <div style={{ fontSize: 9, color: '#E74C3C', marginTop: 1 }}>{b.inicio}–{b.fim}</div>
-                        {b.motivo ? <div style={{ fontSize: 9, color: '#888', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.motivo}</div> : null}
-                      </div>
-                    );
-                  })}
-                  {!isDiaBloqueado(d.date) && agendamentos.filter(a => a.day === di).map((a) => (
-                    <div key={a.id} style={{ ...s.apptBlock, ...blockColors[a.color], top: a.top, height: a.h }} onClick={() => setSelected(a)}>
-                      <div style={s.apptName}>{a.name}</div>
-                      <div style={s.apptProc}>{a.proc}</div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
+      <div style={{ display:'flex', gap:16 }}>
+        {/* Calendário principal */}
+        <div style={{ flex:1, minWidth:0 }}>
+          {view==='Semana' ? renderWeekView() : renderDayView()}
         </div>
 
-        <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card style={{ padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        {/* Sidebar */}
+        <div style={{ width:210, flexShrink:0, display:'flex', flexDirection:'column', gap:16 }}>
+          {/* Mini calendário */}
+          <Card style={{ padding:16 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
               <button style={s.miniNavBtn} onClick={irMesAnterior}>&#8249;</button>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{MONTH_NAMES[miniMonth]} {miniYear}</div>
+              <div style={{ fontSize:12, fontWeight:500 }}>{MONTH_NAMES[miniMonth]} {miniYear}</div>
               <button style={s.miniNavBtn} onClick={irProximoMes}>&#8250;</button>
             </div>
-            <div style={s.miniGrid}>
-              {['D','S','T','Q','Q','S','S'].map((d,i) => <div key={i} style={s.miniDayName}>{d}</div>)}
-              {miniCells.map((d, i) => (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:1, textAlign:'center' }}>
+              {['D','S','T','Q','Q','S','S'].map((d,i)=><div key={i} style={{ fontSize:9, color:'#CCC', padding:'2px 0' }}>{d}</div>)}
+              {miniCells.map((d,i)=>(
                 <div key={i}
-                  style={{ ...s.miniDay, ...(d.today ? s.miniToday : {}), ...(d.empty ? { color: 'transparent', pointerEvents: 'none' } : {}) }}
-                  onClick={() => d.d && !d.empty && irParaSemanaDoMiniDia(Number(d.d))}
+                  style={{ fontSize:11, padding:'4px 2px', borderRadius:4, cursor:d.empty?'default':'pointer', color:d.empty?'transparent':'#555', position:'relative', background:d.today?'#1A1A1A':'transparent', ...(d.today?{color:'#fff',borderRadius:'50%'}:{}) }}
+                  onClick={()=>d.ds&&!d.empty&&clicarDiaMini(d.ds)}
                 >
-                  {d.d || ''}
-                  {d.dot && !d.today && <div style={s.miniDot} />}
+                  {d.d||''}
+                  {d.dot&&!d.today&&<div style={{ position:'absolute', bottom:1, left:'50%', transform:'translateX(-50%)', width:3, height:3, borderRadius:'50%', background:'#A8D5C2' }} />}
                 </div>
               ))}
             </div>
           </Card>
 
-          <Card style={{ padding: 18 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14 }}>Próximos hoje</div>
-            {upcoming.length > 0 ? (
-              upcoming.map(u => (
-                <div key={u.id} style={{ padding: '10px 0', borderBottom: '1px solid #F5F5F5' }}>
-                  <div style={{ fontSize: 12, fontWeight: 500 }}>{u.name}</div>
-                  <div style={{ fontSize: 11, color: '#AAA', marginTop: 2 }}>{u.proc}</div>
-                </div>
-              ))
+          {/* Hoje */}
+          <Card style={{ padding:16 }}>
+            <div style={{ fontSize:12, fontWeight:500, marginBottom:12 }}>Hoje</div>
+            {agendamentosRaw.filter(a=>a.data===hoje).length > 0 ? (
+              agendamentosRaw.filter(a=>a.data===hoje).slice(0,5).map(a => {
+                const cor = corDentista(a.dentistaNome);
+                return (
+                  <div key={a.id} style={{ padding:'8px 0', borderBottom:'1px solid #F5F5F5', cursor:'pointer' }} onClick={()=>setSelected(a)}>
+                    <div style={{ fontSize:12, fontWeight:500 }}>{a.pacienteNome}</div>
+                    <div style={{ fontSize:10, color:'#AAA', marginTop:1 }}>{a.hora} · <span style={{ color:cor.text }}>{a.dentistaNome}</span></div>
+                  </div>
+                );
+              })
             ) : (
-              <div style={{ fontSize: 12, color: '#AAA' }}>Nenhum agendamento hoje</div>
+              <div style={{ fontSize:12, color:'#AAA' }}>Nenhum agendamento hoje</div>
             )}
           </Card>
+
+          {/* Legenda dentistas */}
+          {dentistasClinica.length > 0 && (
+            <Card style={{ padding:16 }}>
+              <div style={{ fontSize:12, fontWeight:500, marginBottom:10 }}>Dentistas</div>
+              {dentistasClinica.map((d,i) => {
+                const cor = DENTIST_PALETTE[i%DENTIST_PALETTE.length];
+                const count = agendamentosRaw.filter(a=>a.dentistaNome===d.nome&&a.data===hoje).length;
+                return (
+                  <div key={d.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 0', borderBottom:'1px solid #F8F8F8' }}>
+                    <div style={{ width:10, height:10, borderRadius:'50%', background:cor.bg, border:`2px solid ${cor.border}`, flexShrink:0 }} />
+                    <div style={{ fontSize:11, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.nome}</div>
+                    {count>0 && <div style={{ fontSize:10, color:cor.text, fontWeight:600 }}>{count}</div>}
+                  </div>
+                );
+              })}
+            </Card>
+          )}
         </div>
       </div>
 
+      {/* Modal detalhe agendamento */}
       {selected && (
-        <div style={s.overlay} onClick={() => setSelected(null)}>
-          <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={{ ...s.modalHeader, ...blockColors[selected.color] }}>
+        <div style={s.overlay} onClick={()=>setSelected(null)}>
+          <div style={s.modal} onClick={e=>e.stopPropagation()}>
+            <div style={{ ...s.modalHeader, ...corDentista(selected.dentistaNome) }}>
               <div>
-                <div style={s.modalName}>{selected.name}</div>
-                <div style={{ fontSize: 12, opacity: 0.75, marginTop: 2 }}>{selected.proc}</div>
+                <div style={s.modalName}>{selected.pacienteNome}</div>
+                <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>{selected.hora} · {selected.procedimento}</div>
               </div>
-              <button style={s.closeBtn} onClick={() => setSelected(null)}>✕</button>
+              <button style={s.closeBtn} onClick={()=>setSelected(null)}>✕</button>
             </div>
             <div style={s.modalBody}>
-              <div style={s.infoGrid}>
-                {[['Procedimento', selected.procedimento],['Dentista', selected.dentista],['Idade', selected.age],['Telefone', selected.phone]].map(([label, val]) => (
-                  <div key={label}>
-                    <div style={s.infoLabel}>{label}</div>
-                    <div style={s.infoVal}>{val}</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:16 }}>
+                {[['Dentista',selected.dentistaNome],['Data',selected.data?.split('-').reverse().join('/')],['Procedimento',selected.procedimento],['Status',selected.status]].map(([l,v])=>(
+                  <div key={l}>
+                    <div style={s.infoLabel}>{l}</div>
+                    <div style={{ fontSize:13, color:'#1A1A1A', fontWeight:500 }}>{v||'—'}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
-                <span style={s.infoLabel}>Status</span>
-                <span style={{ ...s.statusBadge, ...statusColors[selected.status] }}>{selected.status}</span>
-              </div>
-              {selected.notes ? (
-                <div style={s.notes}>
-                  <div style={s.infoLabel}>Observações</div>
-                  <div style={{ fontSize: 13, color: '#555', marginTop: 4, lineHeight: 1.5 }}>{selected.notes}</div>
-                </div>
-              ) : null}
-              <div style={s.actions}>
-                <button style={s.actionBtn} onClick={() => setSelected(null)}>Fechar</button>
-                <button style={s.actionBtn} onClick={() => handleEditAgendamento(selected)}>Editar</button>
-                <button style={{ ...s.actionBtn, ...s.actionBtnDanger }} onClick={() => handleDeleteAgendamento(selected.id)}>Cancelar</button>
+              {selected.pacienteEmail && <div style={{ marginBottom:8 }}><div style={s.infoLabel}>Email</div><div style={{ fontSize:12, color:'#555' }}>{selected.pacienteEmail}</div></div>}
+              {selected.pacienteTelefone && <div style={{ marginBottom:8 }}><div style={s.infoLabel}>Telefone</div><div style={{ fontSize:12, color:'#555' }}>{selected.pacienteTelefone}</div></div>}
+              {selected.observacoes && <div style={{ marginTop:12, padding:10, background:'#FAFAFA', borderRadius:8 }}><div style={s.infoLabel}>Observações</div><div style={{ fontSize:12, color:'#555', marginTop:4 }}>{selected.observacoes}</div></div>}
+              <div style={{ display:'flex', gap:8, marginTop:20 }}>
+                <button style={s.actionBtn} onClick={()=>setSelected(null)}>Fechar</button>
+                <button style={s.actionBtn} onClick={()=>handleEditAgendamento(selected)}>Editar</button>
+                <button style={{...s.actionBtn,...s.actionBtnDanger}} onClick={()=>handleDeleteAgendamento(selected.id)}>Cancelar</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {modalBloqueio && (
-        <div style={s.overlay} onClick={() => setModalBloqueio(false)}>
-          <div style={{ ...s.modal, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-            <div style={{ ...s.modalHeader, background: '#FFF3CD', color: '#856404' }}>
-              <div>
-                <div style={s.modalName}>Bloquear Agenda</div>
-                <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>Configure dias sem atendimento</div>
-              </div>
-              <button style={s.closeBtn} onClick={() => setModalBloqueio(false)}>✕</button>
-            </div>
-            <div style={s.modalBody}>
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  Dias da semana sem atendimento
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[0,1,2,3,4,5,6].map(dia => (
-                    <label key={dia} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, background: bloqueios.diasSemana.includes(dia) ? '#FFF3CD' : '#FAFAFA', border: `1.5px solid ${bloqueios.diasSemana.includes(dia) ? '#F39C12' : '#EFEFEF'}` }}>
-                      <input
-                        type="checkbox"
-                        checked={bloqueios.diasSemana.includes(dia)}
-                        onChange={() => toggleDiaSemana(dia)}
-                        style={{ width: 16, height: 16, accentColor: '#F39C12' }}
-                      />
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{DAY_NAMES_FULL[dia]}</span>
-                      {bloqueios.diasSemana.includes(dia) && (
-                        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#856404', fontWeight: 600 }}>Fechado</span>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  Bloquear data específica
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <input
-                    type="date"
-                    style={{ ...s.input, flex: 1 }}
-                    value={novaDataBloqueio}
-                    min={hoje}
-                    onChange={e => setNovaDataBloqueio(e.target.value)}
-                  />
-                  <button
-                    style={{ padding: '10px 16px', background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                    onClick={adicionarDataBloqueio}
-                  >
-                    + Bloquear
-                  </button>
-                </div>
-                {bloqueios.datas.length === 0 ? (
-                  <div style={{ fontSize: 12, color: '#AAA', textAlign: 'center', padding: '12px 0' }}>Nenhuma data bloqueada</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {bloqueios.datas.map(data => {
-                      const [ano, mes, dia] = data.split('-');
-                      const diaSemana = new Date(data + 'T00:00:00').getDay();
-                      return (
-                        <div key={data} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: '#FDECEA', border: '1.5px solid #FFCDD2' }}>
-                          <div>
-                            <span style={{ fontSize: 13, fontWeight: 500, color: '#C62828' }}>{dia}/{mes}/{ano}</span>
-                            <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>{DAY_NAMES_FULL[diaSemana]}</span>
-                          </div>
-                          <button onClick={() => removerDataBloqueio(data)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#E74C3C', fontSize: 14, fontWeight: 600, padding: '2px 6px' }}>✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: 24, borderTop: '1.5px solid #EFEFEF', paddingTop: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  Bloquear horário específico
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: '#AAA', fontWeight: 600, marginBottom: 4 }}>DATA</div>
-                    <input
-                      type="date"
-                      style={s.input}
-                      value={novoHorarioBloqueio.data}
-                      min={hoje}
-                      onChange={e => setNovoHorarioBloqueio(p => ({ ...p, data: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: '#AAA', fontWeight: 600, marginBottom: 4 }}>DAS</div>
-                    <input
-                      type="time"
-                      style={s.input}
-                      value={novoHorarioBloqueio.inicio}
-                      onChange={e => setNovoHorarioBloqueio(p => ({ ...p, inicio: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: '#AAA', fontWeight: 600, marginBottom: 4 }}>ATÉ</div>
-                    <input
-                      type="time"
-                      style={s.input}
-                      value={novoHorarioBloqueio.fim}
-                      onChange={e => setNovoHorarioBloqueio(p => ({ ...p, fim: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <input
-                    type="text"
-                    style={{ ...s.input, flex: 1 }}
-                    placeholder="Motivo (opcional)"
-                    value={novoHorarioBloqueio.motivo}
-                    onChange={e => setNovoHorarioBloqueio(p => ({ ...p, motivo: e.target.value }))}
-                  />
-                  <button
-                    style={{ padding: '10px 16px', background: '#E74C3C', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                    onClick={adicionarHorarioBloqueio}
-                  >
-                    + Bloquear
-                  </button>
-                </div>
-                {(bloqueios.horarios || []).length === 0 ? (
-                  <div style={{ fontSize: 12, color: '#AAA', textAlign: 'center', padding: '8px 0' }}>Nenhum horário bloqueado</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
-                    {(bloqueios.horarios || []).map((b, idx) => {
-                      const [ano, mes, dia] = b.data.split('-');
-                      return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 8, background: '#FFF5F5', border: '1.5px solid #FFCDD2' }}>
-                          <div>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: '#C62828' }}>{dia}/{mes}/{ano}</span>
-                            <span style={{ fontSize: 12, color: '#E74C3C', marginLeft: 8 }}>{b.inicio}–{b.fim}</span>
-                            {b.motivo && <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>{b.motivo}</span>}
-                          </div>
-                          <button onClick={() => removerHorarioBloqueio(idx)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#E74C3C', fontSize: 14, fontWeight: 600, padding: '2px 6px' }}>✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: 20 }}>
-                <button style={{ ...s.actionBtn, background: '#A8D5C2', borderColor: '#A8D5C2', width: '100%' }} onClick={() => setModalBloqueio(false)}>
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Modal novo/editar agendamento */}
       {novoModal && (
-        <div style={s.overlay} onClick={() => setNovoModal(false)}>
-          <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={{ ...s.modalHeader, background: '#A8D5C2', color: '#1A1A1A' }}>
-              <div>
-                <div style={s.modalName}>{editingId ? 'Editar Agendamento' : 'Novo Agendamento'}</div>
-              </div>
-              <button style={s.closeBtn} onClick={() => setNovoModal(false)}>✕</button>
+        <div style={s.overlay} onClick={()=>setNovoModal(false)}>
+          <div style={s.modal} onClick={e=>e.stopPropagation()}>
+            <div style={{ ...s.modalHeader, background:'#A8D5C2', color:'#1A1A1A' }}>
+              <div style={s.modalName}>{editingId?'Editar Agendamento':'Novo Agendamento'}</div>
+              <button style={s.closeBtn} onClick={()=>setNovoModal(false)}>✕</button>
             </div>
             <div style={s.modalBody}>
-              {mensagemFeedback && (
-                <div style={{
-                  padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 13, fontWeight: 500,
-                  background: tipoFeedback === 'sucesso' ? '#E8F5E9' : '#FFEBEE',
-                  color: tipoFeedback === 'sucesso' ? '#27AE60' : '#C62828',
-                  border: `1.5px solid ${tipoFeedback === 'sucesso' ? '#C8E6C9' : '#FFCDD2'}`,
-                }}>
-                  {tipoFeedback === 'sucesso' ? '✅' : '❌'} {mensagemFeedback}
-                </div>
-              )}
-              <div style={s.formRow}>
-                <div style={{ ...s.formGroup, position: 'relative' }}>
+              {feedback && <div style={{ padding:'10px 14px', marginBottom:12, borderRadius:8, fontSize:13, fontWeight:500, background:feedback.tipo==='sucesso'?'#E8F5E9':'#FFEBEE', color:feedback.tipo==='sucesso'?'#27AE60':'#C62828', border:`1.5px solid ${feedback.tipo==='sucesso'?'#C8E6C9':'#FFCDD2'}` }}>{feedback.tipo==='sucesso'?'✅':'❌'} {feedback.msg}</div>}
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+                <div style={{ gridColumn:'1/-1', position:'relative' }}>
                   <label style={s.label}>Paciente</label>
-                  <input type="text" style={s.input} placeholder="Nome do paciente" value={formData.paciente} onChange={e => handlePacienteDigitado(e.target.value)} autoComplete="off" />
-                  {sugestoesPaciente.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E8E8E8', borderRadius: 8, zIndex: 300, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', marginTop: 2 }}>
-                      {sugestoesPaciente.map(p => (
-                        <div key={p.id} onClick={() => selecionarPacienteCadastrado(p)}
-                          style={{ padding: '10px 12px', fontSize: 12, cursor: 'pointer', borderBottom: '1px solid #F5F5F5' }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#F8F8F8'}
-                          onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                  <input type="text" style={s.input} placeholder="Nome do paciente" value={formData.paciente} onChange={e=>handlePacienteDigitado(e.target.value)} autoComplete="off" />
+                  {sugestoesPaciente.length>0 && (
+                    <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1.5px solid #E8E8E8', borderRadius:8, zIndex:300, boxShadow:'0 8px 20px rgba(0,0,0,0.1)', marginTop:2 }}>
+                      {sugestoesPaciente.map(p=>(
+                        <div key={p.id} onClick={()=>{setFormData(prev=>({...prev,paciente:p.nome,cpf:p.cpf||'',email:p.email||'',telefone:p.telefone||''}));setSugestoesPaciente([]);}}
+                          style={{ padding:'10px 12px', fontSize:12, cursor:'pointer', borderBottom:'1px solid #F5F5F5' }}
+                          onMouseEnter={e=>e.currentTarget.style.background='#F8F8F8'}
+                          onMouseLeave={e=>e.currentTarget.style.background='#fff'}
                         >
                           <strong>{p.nome}</strong>
-                          {p.cpf && <span style={{ color: '#AAA', marginLeft: 8 }}>{p.cpf}</span>}
+                          {p.cpf&&<span style={{ color:'#AAA', marginLeft:8 }}>{p.cpf}</span>}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-                <div style={s.formGroup}>
+                <div>
                   <label style={s.label}>CPF</label>
-                  <input type="text" style={s.input} placeholder="000.000.000-00" value={formData.cpf} onChange={e => setFormData({ ...formData, cpf: e.target.value })} />
+                  <input type="text" style={s.input} placeholder="000.000.000-00" value={formData.cpf} onChange={e=>setFormData(p=>({...p,cpf:e.target.value}))} />
                 </div>
-              </div>
-              <div style={s.formRow}>
-                <div style={s.formGroup}>
-                  <label style={s.label}>Email</label>
-                  <input type="email" style={s.input} placeholder="email@exemplo.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                </div>
-                <div style={s.formGroup}>
+                <div>
                   <label style={s.label}>Telefone</label>
-                  <input type="tel" style={s.input} placeholder="11987654321" value={formData.telefone} onChange={e => setFormData({ ...formData, telefone: e.target.value })} />
+                  <input type="tel" style={s.input} placeholder="(11) 99999-0000" value={formData.telefone} onChange={e=>setFormData(p=>({...p,telefone:e.target.value}))} />
                 </div>
-              </div>
-              <div style={s.formRow}>
-                <div style={s.formGroup}>
+                <div>
                   <label style={s.label}>Data</label>
-                  <input type="date" style={s.input} value={formData.data} onChange={e => setFormData({ ...formData, data: e.target.value })} />
+                  <input type="date" style={s.input} value={formData.data} onChange={e=>setFormData(p=>({...p,data:e.target.value}))} />
                 </div>
-                <div style={s.formGroup}>
+                <div>
                   <label style={s.label}>Hora</label>
-                  <input type="time" style={s.input} value={formData.hora} onChange={e => setFormData({ ...formData, hora: e.target.value })} />
+                  <input type="time" style={s.input} value={formData.hora} onChange={e=>setFormData(p=>({...p,hora:e.target.value}))} />
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={s.label}>Dentista</label>
+                  <select style={s.input} value={formData.dentista} onChange={e=>setFormData(p=>({...p,dentista:e.target.value}))}>
+                    {dentistasClinica.length > 0
+                      ? dentistasClinica.map(d=><option key={d.id} value={d.nome}>{d.nome}{d.especialidade?` — ${d.especialidade}`:''}</option>)
+                      : <option value="">Sem dentistas cadastrados</option>
+                    }
+                  </select>
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={s.label}>Procedimento</label>
+                  <select style={s.input} value={formData.procedimento} onChange={e=>setFormData(p=>({...p,procedimento:e.target.value}))}>
+                    {procedures.map(p=><option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={s.label}>Status</label>
+                  <select style={s.input} value={formData.status} onChange={e=>setFormData(p=>({...p,status:e.target.value}))}>
+                    {statuses.map(st=><option key={st} value={st}>{st}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={s.label}>Email</label>
+                  <input type="email" style={s.input} placeholder="email@exemplo.com" value={formData.email} onChange={e=>setFormData(p=>({...p,email:e.target.value}))} />
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={s.label}>Observações</label>
+                  <textarea style={{ ...s.input, minHeight:70 }} placeholder="Observações..." value={formData.observacoes} onChange={e=>setFormData(p=>({...p,observacoes:e.target.value}))} />
                 </div>
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Procedimento</label>
-                <select style={s.input} value={formData.procedimento} onChange={e => setFormData({ ...formData, procedimento: e.target.value })}>
-                  {procedures.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+              <div style={{ display:'flex', gap:8 }}>
+                <button style={{ ...s.actionBtn, background:'#E8E8E8' }} onClick={()=>setNovoModal(false)} disabled={carregando}>Cancelar</button>
+                <button style={{ ...s.actionBtn, background:carregando?'#CCC':'#A8D5C2', color:'#1A1A1A', cursor:carregando?'not-allowed':'pointer' }} onClick={handleSaveAgendamento} disabled={carregando}>
+                  {carregando?'⏳ Salvando...':(editingId?'Atualizar':'Agendar')}
+                </button>
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Dentista</label>
-                <select style={s.input} value={formData.dentista} onChange={e => setFormData({ ...formData, dentista: e.target.value })}>
-                  {dentists.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Status</label>
-                <select style={s.input} value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
-                  {statuses.map(st => <option key={st} value={st}>{st}</option>)}
-                </select>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Cor</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {colorOptions.map(c => (
-                    <button key={c} onClick={() => setFormData({ ...formData, color: c })} style={{ ...blockColors[c], width: 40, height: 40, border: formData.color === c ? '2px solid #1A1A1A' : '1px solid #CCC', borderRadius: 6, cursor: 'pointer' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal bloquear agenda */}
+      {modalBloqueio && (
+        <div style={s.overlay} onClick={()=>setModalBloqueio(false)}>
+          <div style={{ ...s.modal, maxWidth:460 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ ...s.modalHeader, background:'#FFF3CD', color:'#856404' }}>
+              <div><div style={s.modalName}>Bloquear Agenda</div><div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>Configure dias sem atendimento</div></div>
+              <button style={s.closeBtn} onClick={()=>setModalBloqueio(false)}>✕</button>
+            </div>
+            <div style={s.modalBody}>
+              <div style={{ marginBottom:20 }}>
+                <div style={s.sectionTitle}>Dias da semana</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                  {DAY_NAMES_FULL.map((d,i)=>(
+                    <label key={i} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 12px', borderRadius:20, background:bloqueios.diasSemana.includes(i)?'#FFF3CD':'#FAFAFA', border:`1.5px solid ${bloqueios.diasSemana.includes(i)?'#F39C12':'#EFEFEF'}`, fontSize:12, fontWeight:500 }}>
+                      <input type="checkbox" checked={bloqueios.diasSemana.includes(i)} onChange={()=>toggleDiaSemana(i)} style={{ accentColor:'#F39C12' }} />
+                      {d.substring(0,3)}
+                    </label>
                   ))}
                 </div>
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Observações</label>
-                <textarea style={{ ...s.input, minHeight: 80 }} placeholder="Adicione observações..." value={formData.observacoes} onChange={e => setFormData({ ...formData, observacoes: e.target.value })} />
+
+              <div style={{ marginBottom:20 }}>
+                <div style={s.sectionTitle}>Bloquear data específica</div>
+                <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+                  <input type="date" style={{ ...s.input, flex:1 }} value={novaDataBloqueio} min={hoje} onChange={e=>setNovaDataBloqueio(e.target.value)} />
+                  <button style={{ padding:'10px 16px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer' }} onClick={adicionarDataBloqueio}>+ Bloquear</button>
+                </div>
+                {bloqueios.datas.map(data=>{
+                  const [a,m,d]=data.split('-');
+                  return (
+                    <div key={data} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', borderRadius:8, background:'#FDECEA', border:'1.5px solid #FFCDD2', marginBottom:4 }}>
+                      <span style={{ fontSize:13, fontWeight:500, color:'#C62828' }}>{d}/{m}/{a}</span>
+                      <button onClick={()=>removerDataBloqueio(data)} style={{ background:'transparent', border:'none', cursor:'pointer', color:'#E74C3C', fontSize:16, fontWeight:700 }}>✕</button>
+                    </div>
+                  );
+                })}
               </div>
-              <div style={s.actions}>
-                <button style={{ ...s.actionBtn, background: '#E8E8E8' }} onClick={() => setNovoModal(false)} disabled={carregando}>Cancelar</button>
-                <button
-                  style={{ ...s.actionBtn, background: carregando ? '#CCC' : '#A8D5C2', color: '#1A1A1A', cursor: carregando ? 'not-allowed' : 'pointer' }}
-                  onClick={handleSaveAgendamento}
-                  disabled={carregando}
-                >
-                  {carregando ? '⏳ Salvando...' : (editingId ? 'Atualizar' : 'Agendar')}
-                </button>
+
+              <div>
+                <div style={s.sectionTitle}>Bloquear horário específico</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:8 }}>
+                  <div><div style={{ fontSize:10, color:'#AAA', marginBottom:4 }}>DATA</div><input type="date" style={s.input} value={novoHorarioBloqueio.data} min={hoje} onChange={e=>setNovoHorarioBloqueio(p=>({...p,data:e.target.value}))} /></div>
+                  <div><div style={{ fontSize:10, color:'#AAA', marginBottom:4 }}>DAS</div><input type="time" style={s.input} value={novoHorarioBloqueio.inicio} onChange={e=>setNovoHorarioBloqueio(p=>({...p,inicio:e.target.value}))} /></div>
+                  <div><div style={{ fontSize:10, color:'#AAA', marginBottom:4 }}>ATÉ</div><input type="time" style={s.input} value={novoHorarioBloqueio.fim} onChange={e=>setNovoHorarioBloqueio(p=>({...p,fim:e.target.value}))} /></div>
+                </div>
+                <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+                  <input type="text" style={{ ...s.input, flex:1 }} placeholder="Motivo (opcional)" value={novoHorarioBloqueio.motivo} onChange={e=>setNovoHorarioBloqueio(p=>({...p,motivo:e.target.value}))} />
+                  <button style={{ padding:'10px 16px', background:'#E74C3C', color:'#fff', border:'none', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer' }} onClick={adicionarHorarioBloqueio}>+ Bloquear</button>
+                </div>
+                {(bloqueios.horarios||[]).map((b,idx)=>{
+                  const [a,m,d]=b.data.split('-');
+                  return (
+                    <div key={idx} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 12px', borderRadius:8, background:'#FFF5F5', border:'1.5px solid #FFCDD2', marginBottom:4 }}>
+                      <div>
+                        <span style={{ fontSize:12, fontWeight:600, color:'#C62828' }}>{d}/{m}/{a}</span>
+                        <span style={{ fontSize:12, color:'#E74C3C', marginLeft:8 }}>{b.inicio}–{b.fim}</span>
+                        {b.motivo&&<span style={{ fontSize:11, color:'#888', marginLeft:8 }}>{b.motivo}</span>}
+                      </div>
+                      <button onClick={()=>removerHorarioBloqueio(idx)} style={{ background:'transparent', border:'none', cursor:'pointer', color:'#E74C3C', fontSize:16, fontWeight:700 }}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ marginTop:20 }}>
+                <button style={{ ...s.actionBtn, background:'#A8D5C2', width:'100%' }} onClick={()=>setModalBloqueio(false)}>Fechar</button>
               </div>
             </div>
           </div>
@@ -789,53 +846,25 @@ export default function Agenda() {
 }
 
 const s = {
-  main: { flex: 1, padding: 32, overflowY: 'auto' },
-  weekNav: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 },
-  weekLabel: { fontSize: 15, fontWeight: 500, minWidth: 240, textAlign: 'center' },
-  navBtn: { width: 32, height: 32, border: '1.5px solid #E8E8E8', background: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 16, color: '#555' },
-  viewTabs: { display: 'flex', gap: 4, background: '#EFEFEF', borderRadius: 8, padding: 3, marginLeft: 'auto' },
-  viewTab: { padding: '6px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer', color: '#888' },
-  viewTabActive: { background: '#fff', color: '#1A1A1A', fontWeight: 500 },
-  calWrap: { background: '#fff', borderRadius: 12, border: '1.5px solid #EFEFEF', overflow: 'hidden' },
-  calHead: { display: 'grid', gridTemplateColumns: '64px repeat(6, 1fr)', borderBottom: '1.5px solid #EFEFEF' },
-  headEmpty: { padding: 16, borderRight: '1px solid #F0F0F0' },
-  dayCol: { padding: '14px 8px', textAlign: 'center', borderRight: '1px solid #F0F0F0' },
-  dayName: { fontSize: 11, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.8px' },
-  dayNum: { fontSize: 22, fontFamily: "'DM Serif Display', serif", lineHeight: 1.2, marginTop: 2 },
-  dayNumToday: { background: '#A8D5C2', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px auto 0', fontSize: 18 },
-  calBody: { display: 'grid', gridTemplateColumns: '64px repeat(6, 1fr)' },
-  timeSlot: { height: 60, padding: '6px 8px 0', fontSize: 10, color: '#CCC', textAlign: 'right', borderRight: '1px solid #F0F0F0' },
-  dayColBody: { position: 'relative', borderRight: '1px solid #F0F0F0' },
-  hourLine: { height: 60, borderBottom: '1px solid #F8F8F8' },
-  apptBlock: { position: 'absolute', left: 4, right: 4, borderRadius: 6, padding: '6px 8px', cursor: 'pointer', overflow: 'hidden' },
-  apptName: { fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  apptProc: { fontSize: 10, opacity: 0.75, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  miniGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' },
-  miniDayName: { fontSize: 9, color: '#CCC', padding: '2px 0', textTransform: 'uppercase' },
-  miniNavBtn: { width: 24, height: 24, border: '1px solid #E8E8E8', background: '#fff', borderRadius: 6, cursor: 'pointer', fontSize: 14, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
-  miniDay: { fontSize: 11, padding: '4px 2px', borderRadius: 4, cursor: 'pointer', color: '#555', position: 'relative' },
-  miniToday: { background: '#1A1A1A', color: '#fff', borderRadius: '50%' },
-  miniDot: { position: 'absolute', bottom: 1, left: '50%', transform: 'translateX(-50%)', width: 3, height: 3, borderRadius: '50%', background: '#A8D5C2' },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  modal: { background: '#fff', borderRadius: 16, width: '100%', maxWidth: 420, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' },
-  modalHeader: { padding: '20px 20px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
-  modalName: { fontSize: 17, fontWeight: 600, fontFamily: "'DM Serif Display', serif" },
-  closeBtn: { background: 'transparent', border: 'none', fontSize: 14, cursor: 'pointer', opacity: 0.6, padding: 4 },
-  modalBody: { padding: '16px 20px 20px' },
-  infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
-  infoLabel: { fontSize: 10, fontWeight: 500, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 2 },
-  infoVal: { fontSize: 13, color: '#1A1A1A' },
-  statusBadge: { padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500, textTransform: 'capitalize' },
-  notes: { marginTop: 14, padding: 12, background: '#FAFAFA', borderRadius: 8 },
-  actions: { display: 'flex', gap: 8, marginTop: 20 },
-  actionBtn: { flex: 1, padding: '10px 8px', border: '1.5px solid #E8E8E8', borderRadius: 10, background: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", color: '#1A1A1A' },
-  actionBtnDanger: { color: '#E74C3C', borderColor: '#FDECEA', background: '#FDECEA' },
-  formGroup: { marginBottom: 12 },
-  label: { display: 'block', fontSize: 10, fontWeight: 600, color: '#AAA', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 6 },
-  input: { width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' },
-  formRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-  dayColBloqueado: { background: '#FFF8F8' },
-  diaBloquedoOverlay: { position: 'absolute', inset: 0, background: 'repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(231,76,60,0.06) 8px, rgba(231,76,60,0.06) 16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 },
-  diaBloquedoTexto: { background: 'rgba(231,76,60,0.12)', color: '#E74C3C', fontSize: 10, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', padding: '4px 8px', borderRadius: 4, textAlign: 'center' },
-  horarioBloqueadoBlock: { position: 'absolute', left: 4, right: 4, background: 'repeating-linear-gradient(45deg, #FFF5F5, #FFF5F5 6px, #FFEBEE 6px, #FFEBEE 12px)', border: '1.5px solid #FFCDD2', borderRadius: 6, padding: '5px 7px', zIndex: 1, overflow: 'hidden' },
+  main:     { flex:1, padding:32, overflowY:'auto', background:'#F8F8F8' },
+  weekLabel:{ fontSize:14, fontWeight:500, minWidth:220, textAlign:'center' },
+  navBtn:   { width:32, height:32, border:'1.5px solid #E8E8E8', background:'#fff', borderRadius:8, cursor:'pointer', fontSize:16, color:'#555', flexShrink:0 },
+  viewTabs: { display:'flex', gap:4, background:'#EFEFEF', borderRadius:8, padding:3 },
+  viewTab:  { padding:'6px 16px', borderRadius:6, fontSize:12, cursor:'pointer', color:'#888' },
+  viewTabActive: { background:'#fff', color:'#1A1A1A', fontWeight:500 },
+  calWrap:  { background:'#fff', borderRadius:12, border:'1.5px solid #EFEFEF', overflow:'hidden' },
+  miniNavBtn: { width:24, height:24, border:'1px solid #E8E8E8', background:'#fff', borderRadius:6, cursor:'pointer', fontSize:14, color:'#555', display:'flex', alignItems:'center', justifyContent:'center', padding:0 },
+  overlay:  { position:'fixed', inset:0, background:'rgba(0,0,0,0.35)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 },
+  modal:    { background:'#fff', borderRadius:16, width:'100%', maxWidth:460, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.2)', maxHeight:'90vh', overflowY:'auto' },
+  modalHeader: { padding:'20px 20px 16px', display:'flex', justifyContent:'space-between', alignItems:'flex-start' },
+  modalName: { fontSize:17, fontWeight:600, fontFamily:"'DM Serif Display',serif" },
+  closeBtn: { background:'transparent', border:'none', fontSize:14, cursor:'pointer', opacity:0.6, padding:4 },
+  modalBody: { padding:'16px 20px 20px' },
+  infoLabel: { fontSize:10, fontWeight:500, color:'#AAA', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:2 },
+  actions:  { display:'flex', gap:8, marginTop:20 },
+  actionBtn: { flex:1, padding:'10px 8px', border:'1.5px solid #E8E8E8', borderRadius:10, background:'#fff', fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:"'DM Sans',sans-serif", color:'#1A1A1A' },
+  actionBtnDanger: { color:'#E74C3C', borderColor:'#FDECEA', background:'#FDECEA' },
+  label:    { display:'block', fontSize:10, fontWeight:600, color:'#AAA', textTransform:'uppercase', letterSpacing:'0.6px', marginBottom:6 },
+  input:    { width:'100%', padding:'10px 12px', border:'1.5px solid #E8E8E8', borderRadius:8, fontSize:13, fontFamily:"'DM Sans',sans-serif", boxSizing:'border-box' },
+  sectionTitle: { fontSize:11, fontWeight:600, color:'#555', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.6px' },
 };
