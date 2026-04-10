@@ -70,7 +70,7 @@ export default function Login() {
       <div style={s.left}>
         <div style={s.brand}>
           <div style={s.brandIcon}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round">
               <path d="M12 2C9 2 6 4.5 6 8c0 2 .5 3.5 1 5l1 5c.3 1.2 1 2 2 2h4c1 0 1.7-.8 2-2l1-5c.5-1.5 1-3 1-5 0-3.5-3-6-6-6z" />
             </svg>
           </div>
@@ -133,9 +133,9 @@ export default function Login() {
 const s = {
   root: { display: 'flex', minHeight: '100vh', background: '#fff' },
   left: { flex: 1, background: 'linear-gradient(135deg, #1A1A1A 0%, #2D3436 100%)', padding: '60px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
-  brand: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 60 },
-  brandIcon: { width: 40, height: 40, background: '#A8D5C2', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  brandName: { fontSize: 22, fontWeight: 700, color: '#fff', fontFamily: "'DM Serif Display', serif" },
+  brand: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 60 },
+  brandIcon: { width: 64, height: 64, background: '#A8D5C2', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  brandName: { fontSize: 34, fontWeight: 700, color: '#fff', fontFamily: "'DM Serif Display', serif" },
   hero: { fontSize: 48, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.2, marginBottom: 20, fontFamily: "'DM Serif Display', serif" },
   heroSub: { fontSize: 16, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.6 },
   right: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 60px' },

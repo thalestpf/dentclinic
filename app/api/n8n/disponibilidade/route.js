@@ -19,6 +19,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const dias = parseInt(searchParams.get('dias') || '7');
   const clinicaId = searchParams.get('clinica_id');
+  const dentistaNome = searchParams.get('dentista_nome') || null;
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -44,6 +45,7 @@ export async function GET(request) {
       .in('status', ['confirmado', 'pendente']);
 
     if (clinicaId) query = query.eq('clinica_id', clinicaId);
+    if (dentistaNome) query = query.eq('dentista_nome', dentistaNome);
 
     const { data: ocupados } = await query;
     const horasOcupadas = (ocupados || []).map(a => a.hora.substring(0, 5));
