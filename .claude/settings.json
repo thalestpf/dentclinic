@@ -43,7 +43,12 @@
       "Bash(curl -s -X PUT https://n8n.geraresistemas.com.br/api/v1/workflows/jACb0zILelzezeKZ -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1NzEyNzkwfQ.Q2ZvNhRM1ExGp4UbKFISV_S5RhhjNwQnsOK3hBScDU4' -H 'Content-Type: application/json' -d '@h:\\\\tmp\\\\workflow_atendimento.json')",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('OK - nodes:', len\\(d.get\\('nodes',[]\\)\\)\\) if 'nodes' in d else print\\('ERRO:', d.get\\('message', d\\)\\)\")",
       "Bash(curl -s https://n8n.geraresistemas.com.br/api/v1/workflows/jACb0zILelzezeKZ -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1NzEyNzkwfQ.Q2ZvNhRM1ExGp4UbKFISV_S5RhhjNwQnsOK3hBScDU4')",
-      "Bash(node -e \"let d=''; process.stdin.on\\('data',c=>d+=c\\); process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);console.log\\('ID:',j.id,'Nome:',j.name,'Ativo:',j.active,'Nodes:',j.nodes?.length\\)}catch\\(e\\){console.log\\(d.substring\\(0,300\\)\\)}}\\)\")"
+      "Bash(node -e \"let d=''; process.stdin.on\\('data',c=>d+=c\\); process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);console.log\\('ID:',j.id,'Nome:',j.name,'Ativo:',j.active,'Nodes:',j.nodes?.length\\)}catch\\(e\\){console.log\\(d.substring\\(0,300\\)\\)}}\\)\")",
+      "mcp__n8n__search_workflows",
+      "mcp__n8n__get_workflow_details",
+      "Bash(curl -s -X PATCH https://n8n.geraresistemas.com.br/api/v1/workflows/jACb0zILelzezeKZ -H 'X-N8N-API-KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzc1NzEyNzkwfQ.Q2ZvNhRM1ExGp4UbKFISV_S5RhhjNwQnsOK3hBScDU4' -H 'Content-Type: application/json' -d '{\"settings\": {\"executionOrder\": \"v1\", \"availableInMCP\": true}}')",
+      "Bash(curl -s \"https://api.github.com/repos/thalestpf/dentclinic/commits/main\")",
+      "Bash(npx vercel:*)"
     ],
     "additionalDirectories": [
       "\\tmp",
