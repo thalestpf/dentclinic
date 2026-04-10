@@ -123,16 +123,23 @@ export default function ConfiguracoesPage() {
 
   const carregarClinicaId = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const { data } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
-      if (data?.clinica_id) {
-        setClinicaId(data.clinica_id);
-        // Carregar horários já na inicialização
-        const { data: cl } = await supabase.from('clinicas').select('horarios_funcionamento').eq('id', data.clinica_id).maybeSingle();
-        if (cl?.horarios_funcionamento) {
-          setHorarios(prev => ({ ...prev, ...cl.horarios_funcionamento, dias: { ...prev.dias, ...cl.horarios_funcionamento.dias } }));
-        }
+      // Busca clínicas via API (service role — não depende de Supabase Auth)
+      const res = await fetch('/api/clinica');
+      const clinicas = await res.json();
+      if (!Array.isArray(clinicas) || clinicas.length === 0) return;
+
+      // Pega a primeira clínica (para multi-clínica, futuramente usar seletor)
+      const cl = clinicas[0];
+      setClinicaId(cl.id);
+      setClinica(prev => ({ ...prev, nome: cl.nome || prev.nome }));
+
+      // Carregar horários já na inicialização
+      if (cl.horarios_funcionamento) {
+        setHorarios(prev => ({
+          ...prev,
+          ...cl.horarios_funcionamento,
+          dias: { ...prev.dias, ...cl.horarios_funcionamento.dias },
+        }));
       }
     } catch {}
   };
@@ -443,13 +450,11 @@ export default function ConfiguracoesPage() {
   // ========== HORÁRIOS DE FUNCIONAMENTO ==========
   const carregarHorarios = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
-      if (!role?.clinica_id) return;
-      const { data: clinica } = await supabase.from('clinicas').select('horarios_funcionamento').eq('id', role.clinica_id).maybeSingle();
-      if (clinica?.horarios_funcionamento) {
-        setHorarios({ ...HORARIOS_PADRAO, ...clinica.horarios_funcionamento, dias: { ...HORARIOS_PADRAO.dias, ...clinica.horarios_funcionamento.dias } });
+      const res = await fetch('/api/clinica');
+      const cls = await res.json();
+      const hf = cls?.[0]?.horarios_funcionamento;
+      if (hf) {
+        setHorarios({ ...HORARIOS_PADRAO, ...hf, dias: { ...HORARIOS_PADRAO.dias, ...hf.dias } });
       }
     } catch {}
   };
@@ -489,26 +494,28 @@ export default function ConfiguracoesPage() {
   };
 
   const salvarHorarios = async () => {
-    // Obter clinicaId do state ou re-buscar
     let cid = clinicaId;
     if (!cid) {
+      // Re-buscar clinicaId via API se ainda não tiver
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { showToast('Sessão expirada', 'erro'); return; }
-        const { data: role } = await supabase.from('user_roles').select('clinica_id').eq('user_id', session.user.id).maybeSingle();
-        cid = role?.clinica_id;
+        const res = await fetch('/api/clinica');
+        const cls = await res.json();
+        cid = cls?.[0]?.id;
+        if (cid) setClinicaId(cid);
       } catch {}
     }
-    if (!cid) { showToast('Clínica não encontrada. Faça login novamente.', 'erro'); return; }
+    if (!cid) { showToast('Clínica não encontrada', 'erro'); return; }
 
     setSalvandoHorarios(true);
     try {
       const horario_atendimento = gerarTextoHorario(horarios);
-      const { error } = await supabase.from('clinicas').update({
-        horarios_funcionamento: horarios,
-        horario_atendimento,
-      }).eq('id', cid);
-      if (error) throw error;
+      const res = await fetch('/api/clinica', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clinica_id: cid, horarios_funcionamento: horarios, horario_atendimento }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar');
       showToast('Horários salvos com sucesso!');
     } catch (e) {
       showToast('Erro ao salvar: ' + e.message, 'erro');
