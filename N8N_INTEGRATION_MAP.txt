@@ -1,0 +1,150 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                   DENTCLINIC N8N INTEGRATION MAP                              ║
+║                           2026-04-09 v1.0                                     ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+                              ARCHITECTURE OVERVIEW
+═══════════════════════════════════════════════════════════════════════════════
+
+FRONTEND LAYER (Next.js 15 - Client Side)
+──────────────────────────────────────────
+app/(app)/
+├─ agenda/page.jsx         ──POST──┐
+├─ pacientes/page.jsx      ──POST──┤
+├─ orcamento/page.jsx      ──POST──┤
+└─ super-admin/            ──POST──┤
+   └─ integracoes/page.jsx         │
+                                   │ HTTP POST (JSON)
+                                   ▼
+N8N GATEWAY (https://n8n.geraresistemas.com.br)
+───────────────────────────────────────────────
+/webhook/agendamento
+/webhook/paciente
+/webhook/orcamento
+/webhook/confirmacao
+
+═══════════════════════════════════════════════════════════════════════════════
+                          N8N WORKFLOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+WORKFLOW 1: "Agendamento - Novo"
+─────────────────────────────────
+Webhook → Validação → Data Table Log → WhatsApp + Email → Response (200 OK)
+
+WORKFLOW 2: "Lembrete 24h Antes"
+────────────────────────────────
+Scheduler (09:00 daily) → Query Data Table → WhatsApp + Email → Update flags
+
+WORKFLOW 3: "Sincronizar Financeiro"
+─────────────────────────────────────
+Webhook → Map Fields → HTTP Request (API) → Log → Response
+
+═══════════════════════════════════════════════════════════════════════════════
+                          INTEGRATION MATRIX
+═══════════════════════════════════════════════════════════════════════════════
+
+Feature              │ Phase    │ Status         │ Dependencies
+─────────────────────┼──────────┼────────────────┼──────────────────────
+Webhook Trigger      │ Phase 1  │ ✅ Ready       │ None
+Data Table Logging   │ Phase 1  │ ✅ Ready       │ Webhook
+WhatsApp Confirm     │ Phase 2  │ ⏳ Creds       │ Phase 1 + Creds
+Email Confirm        │ Phase 3  │ ⏳ Creds       │ Phase 1 + Creds
+Scheduler Triggers   │ Phase 4  │ ✅ Ready       │ Phase 1, Data Table
+Financial Sync       │ Phase 5  │ 🔴 Mapping     │ Phase 1 + API docs
+Admin Dashboard      │ Phase 6  │ ⏳ Design      │ Phases 1-5
+Monitoring           │ Phase 7  │ ⏳ Plan        │ All workflows
+
+═══════════════════════════════════════════════════════════════════════════════
+                          CREDENTIALS REQUIRED
+═══════════════════════════════════════════════════════════════════════════════
+
+Phase 1 (Immediate)
+───────────────────
+✅ None required
+
+Phase 2 (Next 2-3 days)
+──────────────────────
+WhatsApp:
+  - Phone Number ID
+  - Business Account ID
+  - Permanent Access Token
+
+Email (choose one):
+  - Sendgrid API Key
+  - Gmail OAuth 2.0
+  - SMTP Credentials
+
+Phase 3 (Next 7-10 days)
+───────────────────────
+Financial System:
+  - API Base URL
+  - API Key / Bearer Token
+  - Webhook Token
+  - IP Whitelist
+
+═══════════════════════════════════════════════════════════════════════════════
+                        DEPLOYMENT CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+DEVELOPMENT
+───────────
+☐ Create workflows in n8n dev env
+☐ Test with local frontend
+☐ Test error scenarios
+☐ Verify logging in Data Tables
+☐ Code review
+
+STAGING
+───────
+☐ Deploy to staging environment
+☐ Configure staging credentials
+☐ Run full test suite
+☐ Load testing (1000+ events)
+☐ Performance monitoring
+
+PRODUCTION
+──────────
+☐ Configure production credentials
+☐ Update .env.local
+☐ Deploy workflows
+☐ Monitor error rates
+☐ Rollback plan ready
+☐ Documentation updated
+
+═══════════════════════════════════════════════════════════════════════════════
+                          SUPPORT & RESOURCES
+═══════════════════════════════════════════════════════════════════════════════
+
+Documentation
+──────────────
+- N8N_SUMMARY.md (Start here!)
+- n8n_infrastructure_report.md (Detailed)
+- n8n_configuration_guide.md (Technical)
+- n8n_implementation_checklist.md (Project)
+- N8N_DOCUMENTATION_INDEX.md (Navigation)
+
+External Resources
+───────────────────
+- n8n Docs: https://docs.n8n.io
+- n8n Community: https://community.n8n.io
+- n8n Instance: https://n8n.geraresistemas.com.br
+- DentClinic Repo: /h/Aplicativos/Dentclinic/dentclinic-next
+
+═══════════════════════════════════════════════════════════════════════════════
+                            QUICK START
+═══════════════════════════════════════════════════════════════════════════════
+
+1️⃣  Read N8N_SUMMARY.md (15 min)
+2️⃣  Access https://n8n.geraresistemas.com.br
+3️⃣  Create new workflow: "Agendamento - Phase 1"
+4️⃣  Add Webhook node (POST, path: "agendamento")
+5️⃣  Copy webhook URL
+6️⃣  Create useN8nWebhook() hook in frontend
+7️⃣  Integrate in agenda/page.jsx
+8️⃣  Test end-to-end
+9️⃣  Phase 1 complete!
+
+═══════════════════════════════════════════════════════════════════════════════
+Generated: 2026-04-09 | Status: ✅ READY FOR IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════════════

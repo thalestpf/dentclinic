@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "n8n": {
+      "url": "https://clientes-n8n.lnnhav.easypanel.host/mcp-server/http",
+      "type": "http",
+      "auth": {
+        "type": "bearer",
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmI0ZDQ5NC01ODdlLTRiNTYtYjc2OC01OTk2MDZmYzRkNTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6ImQ1ZjQ3ZTgzLTdlNWItNDZiMy1hN2I2LTZlMmMzMmE5NjFjOSIsImlhdCI6MTc3NTcxNTY1OX0.yp-iwNTunpV2ZbOooU6U9Xy1z2CNLJZ-4vHj4je7CaQ"
+      }
+    }
+  }
+}
