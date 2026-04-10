@@ -59,16 +59,22 @@ export async function GET(request) {
 
   const intervalo = horariosConfig?.intervalo || 30;
 
-  const agora = new Date();
-  const hoje = new Date(agora);
-  hoje.setHours(0, 0, 0, 0);
+  // Usar horário de Brasília (UTC-3) — Vercel roda em UTC
+  const OFFSET_BRASILIA = -3 * 60; // minutos
+  const agoraUTC = new Date();
+  const agoraBR = new Date(agoraUTC.getTime() + OFFSET_BRASILIA * 60 * 1000);
+
+  // "Hoje" no fuso de Brasília
+  const hojeStr = agoraBR.toISOString().split('T')[0]; // YYYY-MM-DD em BR
+  const hojeDate = new Date(hojeStr + 'T00:00:00');
+  const minAtualBR = agoraBR.getUTCHours() * 60 + agoraBR.getUTCMinutes();
 
   const resultado = [];
 
   for (let i = 0; i <= dias; i++) {
-    const data = new Date(hoje);
-    data.setDate(hoje.getDate() + i);
-    const diaSemanaIdx = data.getDay(); // 0=Dom, 6=Sab
+    const data = new Date(hojeDate);
+    data.setUTCDate(hojeDate.getUTCDate() + i);
+    const diaSemanaIdx = data.getUTCDay(); // 0=Dom, 6=Sab
 
     // Obter config do dia
     const diaConfig = horariosConfig?.dias?.[String(diaSemanaIdx)];
@@ -79,7 +85,7 @@ export async function GET(request) {
     if (!diaConfig && diaSemanaIdx === 0) continue;
 
     const dataISO = data.toISOString().split('T')[0];
-    const dataBR = `${String(data.getDate()).padStart(2,'0')}/${String(data.getMonth()+1).padStart(2,'0')}`;
+    const dataBR = `${String(data.getUTCDate()).padStart(2,'0')}/${String(data.getUTCMonth()+1).padStart(2,'0')}`;
     const diaSemana = DIAS_SEMANA[diaSemanaIdx];
 
     // Gerar slots do dia
@@ -89,12 +95,11 @@ export async function GET(request) {
     const almocoFim = diaConfig?.almoco_fim || null;
     let horariosBase = gerarSlots(inicio, fim, intervalo, almocoInicio, almocoFim);
 
-    // Para hoje, filtrar horários que já passaram (sem margem — slot disponível enquanto ainda não chegou)
+    // Para hoje (horário Brasília), filtrar slots já passados
     if (i === 0) {
-      const minAtual = agora.getHours() * 60 + agora.getMinutes();
       horariosBase = horariosBase.filter(h => {
         const [hh, mm] = h.split(':').map(Number);
-        return (hh * 60 + mm) > minAtual;
+        return (hh * 60 + mm) > minAtualBR;
       });
     }
 
