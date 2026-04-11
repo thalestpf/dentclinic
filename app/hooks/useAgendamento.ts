@@ -16,6 +16,7 @@ interface DadosAgendamento {
   observacoes?: string;
   status?: string;
   color?: string;
+  origem?: string;
 }
 
 interface ResultadoAgendamento {
@@ -337,6 +338,7 @@ export function useAgendamento() {
         observacoes: agendamento.observacoes,
         status: agendamento.status,
         color: agendamento.color,
+        origem: agendamento.origem || null,
       }));
     } catch (err) {
       console.error('Erro ao obter agendamentos:', err);

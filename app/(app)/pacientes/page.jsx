@@ -300,8 +300,13 @@ export default function PacientesPage() {
               </tr>
             ) : (
               pacientesFiltrados.map(paciente => (
-                <tr key={paciente.id}>
-                  <td style={s.td}>{paciente.nome}</td>
+                <tr key={paciente.id} style={paciente.origem==='whatsapp' ? { background:'#F0FFF4' } : {}}>
+                  <td style={s.td}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      {paciente.nome}
+                      {paciente.origem==='whatsapp' && <span style={{ fontSize:9, padding:'2px 6px', background:'#25D366', color:'#fff', borderRadius:8, fontWeight:600, whiteSpace:'nowrap' }}>WhatsApp</span>}
+                    </div>
+                  </td>
                   <td style={s.td}>{paciente.cpf}</td>
                   <td style={s.td}>{paciente.telefone}</td>
                   <td style={s.td}>{paciente.convenio}</td>

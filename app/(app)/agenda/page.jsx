@@ -410,7 +410,7 @@ export default function Agenda() {
                       style={{ position:'absolute', top:t, left:esquerda, width:largura, height: 60*PX_POR_MIN - 3, background:cor.bg, color:cor.text, border:`1.5px solid ${cor.border}`, borderRadius:6, padding:'5px 7px', cursor:'pointer', overflow:'hidden', zIndex:3, boxSizing:'border-box' }}
                       onClick={e => { e.stopPropagation(); setSelected(a); }}
                     >
-                      <div style={{ fontSize:11, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.pacienteNome}</div>
+                      <div style={{ fontSize:11, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.pacienteNome}{a.origem==='whatsapp'?' 📱':''}</div>
                       <div style={{ fontSize:10, opacity:0.8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.hora} · {a.dentistaNome}</div>
                       <div style={{ fontSize:9, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.procedimento}</div>
                     </div>
@@ -518,10 +518,11 @@ export default function Agenda() {
                       style={{ position:'absolute', left:3, right:3, top:t, height:60*PX_POR_MIN-4, background:cor.bg, color:cor.text, border:`1.5px solid ${cor.border}`, borderRadius:8, padding:'7px 9px', cursor:'pointer', overflow:'hidden', zIndex:3, boxSizing:'border-box' }}
                       onClick={e => { e.stopPropagation(); setSelected(a); }}
                     >
-                      <div style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.pacienteNome}</div>
+                      <div style={{ fontSize:12, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.pacienteNome}{a.origem==='whatsapp'?' 📱':''}</div>
                       <div style={{ fontSize:11, opacity:0.85, marginTop:2 }}>{a.hora}</div>
                       <div style={{ fontSize:10, opacity:0.7, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', marginTop:1 }}>{a.procedimento}</div>
-                      <div style={{ position:'absolute', bottom:5, right:7 }}>
+                      <div style={{ position:'absolute', bottom:5, right:7, display:'flex', gap:4, alignItems:'center' }}>
+                        {a.origem==='whatsapp' && <span style={{ fontSize:9, padding:'2px 6px', background:'#25D366', color:'#fff', borderRadius:8, fontWeight:600 }}>WhatsApp</span>}
                         <span style={{ fontSize:9, padding:'2px 6px', background:'rgba(255,255,255,0.6)', borderRadius:8, fontWeight:600 }}>{a.status}</span>
                       </div>
                     </div>
@@ -686,7 +687,10 @@ export default function Agenda() {
           <div style={s.modal} onClick={e=>e.stopPropagation()}>
             <div style={{ ...s.modalHeader, ...corDentista(selected.dentistaNome) }}>
               <div>
-                <div style={s.modalName}>{selected.pacienteNome}</div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={s.modalName}>{selected.pacienteNome}</span>
+                  {selected.origem==='whatsapp' && <span style={{ fontSize:10, padding:'2px 8px', background:'#25D366', color:'#fff', borderRadius:10, fontWeight:600 }}>WhatsApp</span>}
+                </div>
                 <div style={{ fontSize:12, opacity:0.8, marginTop:2 }}>{selected.hora} · {selected.procedimento}</div>
               </div>
               <button style={s.closeBtn} onClick={()=>setSelected(null)}>✕</button>
