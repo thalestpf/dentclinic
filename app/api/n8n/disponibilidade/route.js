@@ -8,6 +8,8 @@ const supabaseAdmin = createClient(
 
 const DIAS_SEMANA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
+function horaParaMin(h) { const [hh, mm] = h.split(':').map(Number); return hh * 60 + mm; }
+
 function autorizado(request) {
   return request.headers.get('authorization') === `Bearer ${process.env.N8N_SECRET_KEY}`;
 }
@@ -59,6 +61,24 @@ export async function GET(request) {
 
   const intervalo = horariosConfig?.intervalo || 30;
 
+  // Buscar bloqueios da agenda (tabela agenda_bloqueios)
+  let bloqueiosDiaSemana = [];
+  let bloqueiosDatas = [];
+  let bloqueiosHorarios = [];
+
+  if (clinicaId) {
+    const { data: bloqueios } = await supabaseAdmin
+      .from('agenda_bloqueios')
+      .select('tipo, dia_semana, data, hora_inicio, hora_fim')
+      .eq('clinica_id', clinicaId);
+
+    (bloqueios || []).forEach(b => {
+      if (b.tipo === 'dia_semana') bloqueiosDiaSemana.push(b.dia_semana);
+      else if (b.tipo === 'data') bloqueiosDatas.push(b.data);
+      else if (b.tipo === 'horario') bloqueiosHorarios.push(b);
+    });
+  }
+
   // Usar horário de Brasília (UTC-3) — Vercel roda em UTC
   const OFFSET_BRASILIA = -3 * 60; // minutos
   const agoraUTC = new Date();
@@ -76,7 +96,7 @@ export async function GET(request) {
     data.setUTCDate(hojeDate.getUTCDate() + i);
     const diaSemanaIdx = data.getUTCDay(); // 0=Dom, 6=Sab
 
-    // Obter config do dia
+    // Obter config do dia (horários de funcionamento da clínica)
     const diaConfig = horariosConfig?.dias?.[String(diaSemanaIdx)];
 
     // Se tem config e o dia está desativado, pular
@@ -85,6 +105,12 @@ export async function GET(request) {
     if (!diaConfig && diaSemanaIdx === 0) continue;
 
     const dataISO = data.toISOString().split('T')[0];
+
+    // Verificar bloqueios da agenda (tabela agenda_bloqueios)
+    // Dia da semana bloqueado OU data específica bloqueada → pular dia inteiro
+    if (bloqueiosDiaSemana.includes(diaSemanaIdx)) continue;
+    if (bloqueiosDatas.includes(dataISO)) continue;
+
     const dataBR = `${String(data.getUTCDate()).padStart(2,'0')}/${String(data.getUTCMonth()+1).padStart(2,'0')}`;
     const diaSemana = DIAS_SEMANA[diaSemanaIdx];
 
@@ -94,6 +120,19 @@ export async function GET(request) {
     const almocoInicio = diaConfig?.almoco_inicio || null;
     const almocoFim = diaConfig?.almoco_fim || null;
     let horariosBase = gerarSlots(inicio, fim, intervalo, almocoInicio, almocoFim);
+
+    // Remover slots que caem em bloqueios de horário específico
+    const bloqueiosDoDia = bloqueiosHorarios.filter(b => b.data === dataISO);
+    if (bloqueiosDoDia.length > 0) {
+      horariosBase = horariosBase.filter(h => {
+        const minSlot = horaParaMin(h);
+        return !bloqueiosDoDia.some(b => {
+          const bInicio = horaParaMin(b.hora_inicio.substring(0, 5));
+          const bFim = horaParaMin(b.hora_fim.substring(0, 5));
+          return minSlot >= bInicio && minSlot < bFim;
+        });
+      });
+    }
 
     // Para hoje (horário Brasília), filtrar slots já passados
     if (i === 0) {

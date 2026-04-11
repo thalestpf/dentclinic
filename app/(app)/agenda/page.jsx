@@ -20,7 +20,6 @@ const DENTIST_PALETTE = [
 const DAY_NAMES     = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const DAY_NAMES_FULL = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 const MONTH_NAMES   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const BLOQUEIOS_KEY = 'agenda_bloqueios';
 const HORA_INICIO   = 7;   // 07:00
 const HORA_FIM      = 20;  // 20:00
 const PX_POR_MIN    = 1.2; // 60 min * 1.2 = 72px por hora
@@ -123,9 +122,7 @@ export default function Agenda() {
       supabase.from('pacientes').select('id,nome,cpf,email,telefone').order('nome')
         .then(({ data }) => { if (data) setPacientesCadastrados(data); });
 
-      // Bloqueios no localStorage
-      const saved = localStorage.getItem(BLOQUEIOS_KEY);
-      if (saved) setBloqueios(JSON.parse(saved));
+      // Bloqueios serão carregados depois que clinicaId estiver disponível
     };
     init();
   }, [obterAgendamentos]);
@@ -148,27 +145,67 @@ export default function Agenda() {
       });
   }, [clinicaId, agendamentosRaw]);
 
-  // ── Helpers de bloqueio
-  const salvarBloqueios = (novos) => { localStorage.setItem(BLOQUEIOS_KEY, JSON.stringify(novos)); setBloqueios(novos); };
+  // ── Carregar bloqueios do Supabase
+  const carregarBloqueios = useCallback(async () => {
+    if (!clinicaId) return;
+    try {
+      const res = await fetch(`/api/bloqueios?clinica_id=${clinicaId}`);
+      const dados = await res.json();
+      if (!dados.error) setBloqueios(dados);
+    } catch (err) {
+      console.error('Erro ao carregar bloqueios:', err);
+    }
+  }, [clinicaId]);
+
+  useEffect(() => { carregarBloqueios(); }, [carregarBloqueios]);
+
+  // ── Helpers de bloqueio (Supabase)
   const isDiaBloqueado  = (ds) => { if (!ds) return false; const d = new Date(ds+'T00:00:00').getDay(); return bloqueios.diasSemana.includes(d) || bloqueios.datas.includes(ds); };
   const isHorarioBloqueado = (data, hora) => {
     const min = horaParaMin(hora);
     return (bloqueios.horarios||[]).some(b => b.data===data && horaParaMin(b.inicio)<=min && min<horaParaMin(b.fim));
   };
-  const toggleDiaSemana   = (d) => { const a=bloqueios.diasSemana; salvarBloqueios({...bloqueios, diasSemana: a.includes(d)?a.filter(x=>x!==d):[...a,d]}); };
-  const removerDataBloqueio = (d) => salvarBloqueios({...bloqueios, datas: bloqueios.datas.filter(x=>x!==d)});
-  const adicionarDataBloqueio = () => {
-    if (!novaDataBloqueio||bloqueios.datas.includes(novaDataBloqueio)) return;
-    salvarBloqueios({...bloqueios, datas:[...bloqueios.datas,novaDataBloqueio].sort()});
-    setNovaDataBloqueio('');
+
+  const toggleDiaSemana = async (d) => {
+    if (!clinicaId) return;
+    const jaBloqueado = bloqueios.diasSemana.includes(d);
+    if (jaBloqueado) {
+      await fetch('/api/bloqueios', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clinica_id: clinicaId, tipo:'dia_semana', dia_semana: d }) });
+    } else {
+      await fetch('/api/bloqueios', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clinica_id: clinicaId, tipo:'dia_semana', dia_semana: d }) });
+    }
+    carregarBloqueios();
   };
-  const adicionarHorarioBloqueio = () => {
+
+  const adicionarDataBloqueio = async () => {
+    if (!clinicaId || !novaDataBloqueio || bloqueios.datas.includes(novaDataBloqueio)) return;
+    await fetch('/api/bloqueios', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clinica_id: clinicaId, tipo:'data', data: novaDataBloqueio }) });
+    setNovaDataBloqueio('');
+    carregarBloqueios();
+  };
+
+  const removerDataBloqueio = async (data) => {
+    if (!clinicaId) return;
+    await fetch('/api/bloqueios', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clinica_id: clinicaId, tipo:'data', data }) });
+    carregarBloqueios();
+  };
+
+  const adicionarHorarioBloqueio = async () => {
+    if (!clinicaId) return;
     const {data,inicio,fim,motivo}=novoHorarioBloqueio;
     if(!data||!inicio||!fim||horaParaMin(inicio)>=horaParaMin(fim)) return;
-    salvarBloqueios({...bloqueios, horarios:[...(bloqueios.horarios||[]),{data,inicio,fim,motivo}].sort((a,b)=>a.data.localeCompare(b.data)||a.inicio.localeCompare(b.inicio))});
+    await fetch('/api/bloqueios', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clinica_id: clinicaId, tipo:'horario', data, hora_inicio: inicio, hora_fim: fim, motivo }) });
     setNovoHorarioBloqueio(p=>({...p,data:'',motivo:''}));
+    carregarBloqueios();
   };
-  const removerHorarioBloqueio = (idx) => salvarBloqueios({...bloqueios, horarios:(bloqueios.horarios||[]).filter((_,i)=>i!==idx)});
+
+  const removerHorarioBloqueio = async (idx) => {
+    if (!clinicaId) return;
+    const bloqueio = bloqueios.horarios[idx];
+    if (!bloqueio?.id) return;
+    await fetch('/api/bloqueios', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clinica_id: clinicaId, id: bloqueio.id }) });
+    carregarBloqueios();
+  };
 
   // ── Cor do dentista
   const corDentista = useCallback((nome) => {
