@@ -314,6 +314,37 @@ export default function Agenda() {
     setNovoModal(true);
   };
 
+  const handleIncluirPaciente = async () => {
+    if (!formData.paciente.trim()) { showFeedback('Informe o nome do paciente primeiro', 'erro'); return; }
+    if (!clinicaId) { showFeedback('Clínica não identificada', 'erro'); return; }
+
+    try {
+      // Verificar se já existe pelo CPF ou telefone
+      const cpfLimpo = (formData.cpf || '').replace(/\D/g, '');
+      const telLimpo = (formData.telefone || '').replace(/\D/g, '');
+
+      if (cpfLimpo) {
+        const { data: exist } = await supabase.from('pacientes').select('id').eq('clinica_id', clinicaId).eq('cpf', cpfLimpo).maybeSingle();
+        if (exist) { showFeedback('Paciente já cadastrado com esse CPF'); return; }
+      }
+
+      const { error } = await supabase.from('pacientes').insert([{
+        nome: formData.paciente.trim(),
+        cpf: cpfLimpo || null,
+        telefone: telLimpo || null,
+        email: formData.email || null,
+        clinica_id: clinicaId,
+        status: 'ativo',
+        origem: 'agenda',
+      }]);
+
+      if (error) throw error;
+      showFeedback('Paciente incluído no cadastro!');
+    } catch (err) {
+      showFeedback('Erro ao incluir paciente: ' + err.message, 'erro');
+    }
+  };
+
   const handleDeleteAgendamento = async (id) => {
     if (!confirm('Cancelar este agendamento?')) return;
     const resultado = await deletarAgendamento(id);
@@ -793,8 +824,9 @@ export default function Agenda() {
                   <textarea style={{ ...s.input, minHeight:70 }} placeholder="Observações..." value={formData.observacoes} onChange={e=>setFormData(p=>({...p,observacoes:e.target.value}))} />
                 </div>
               </div>
-              <div style={{ display:'flex', gap:8 }}>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 <button style={{ ...s.actionBtn, background:'#E8E8E8' }} onClick={()=>setNovoModal(false)} disabled={carregando}>Cancelar</button>
+                <button style={{ ...s.actionBtn, background:'#E8F4FD', color:'#1A6FA8', border:'1px solid #C8E0F0' }} onClick={handleIncluirPaciente} disabled={carregando} title="Salvar este paciente no cadastro de Pacientes">+ Incluir Paciente</button>
                 <button style={{ ...s.actionBtn, background:carregando?'#CCC':'#A8D5C2', color:'#1A1A1A', cursor:carregando?'not-allowed':'pointer' }} onClick={handleSaveAgendamento} disabled={carregando}>
                   {carregando?'⏳ Salvando...':(editingId?'Atualizar':'Agendar')}
                 </button>

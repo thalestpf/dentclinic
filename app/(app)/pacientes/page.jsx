@@ -257,7 +257,7 @@ export default function PacientesPage() {
         title="Pacientes"
         subtitle="Gerencie os dados de seus pacientes"
       >
-        <Button variant="ghost">Exportar</Button>
+        <Button variant="ghost" onClick={() => carregarPacientes(clinicaId)}>Atualizar</Button>
         <Button onClick={handleNovo}>+ Novo Paciente</Button>
       </PageHeader>
 
