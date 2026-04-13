@@ -36,28 +36,31 @@ export async function POST(request) {
 
     // Montar observações com dados extras do WhatsApp
     const partes = ['Agendado via WhatsApp'];
-    if (body.forma_pagamento) partes.push(`Pagamento: ${body.forma_pagamento}`);
     if (body.convenio) partes.push(`Convênio: ${body.convenio}`);
+    if (body.cpf) partes.push(`CPF: ${body.cpf}`);
     const observacoes = partes.join(' | ');
+
+    const insertData = {
+      paciente_nome,
+      paciente_fone: paciente_fone || '',
+      data,
+      hora: hora.length === 5 ? hora + ':00' : hora,
+      procedimento: body.procedimento || 'Consulta',
+      dentista_nome: body.dentista_nome || '',
+      dentista_id: body.dentista_id || null,
+      clinica_id: clinica_id || null,
+      status: 'pendente',
+      observacoes,
+      color: 'green',
+      origem: 'whatsapp',
+    };
+
+    // paciente_cpf — coluna deve existir: ALTER TABLE agendamentos ADD COLUMN IF NOT EXISTS paciente_cpf VARCHAR;
+    insertData.paciente_cpf = body.cpf ? body.cpf.replace(/\D/g, '') : null;
 
     const { data: agendamento, error } = await supabaseAdmin
       .from('agendamentos')
-      .insert([{
-        paciente_nome,
-        paciente_fone: paciente_fone || '',
-        paciente_cpf: body.paciente_cpf || null,
-        paciente_email: body.paciente_email || null,
-        data,
-        hora: hora.length === 5 ? hora + ':00' : hora,
-        procedimento: body.procedimento || 'Consulta',
-        dentista_nome: body.dentista_nome || '',
-        dentista_id: body.dentista_id || null,
-        clinica_id: clinica_id || null,
-        status: 'pendente',
-        observacoes,
-        color: 'green',
-        origem: 'whatsapp',
-      }])
+      .insert([insertData])
       .select()
       .single();
 

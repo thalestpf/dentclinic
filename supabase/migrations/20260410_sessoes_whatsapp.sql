@@ -1,10 +1,12 @@
 -- Tabela para gerenciar estado da conversa do WhatsApp por número de telefone
 CREATE TABLE IF NOT EXISTS sessoes_whatsapp (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  telefone VARCHAR NOT NULL UNIQUE,
+  telefone VARCHAR NOT NULL,
+  clinica_id UUID,
   estado VARCHAR DEFAULT 'idle',
   dados JSONB DEFAULT '{}',
-  atualizado_em TIMESTAMPTZ DEFAULT NOW()
+  atualizado_em TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(telefone, clinica_id)
 );
 
 -- Índice para busca rápida por telefone
