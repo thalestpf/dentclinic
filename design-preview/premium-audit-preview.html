@@ -1,0 +1,522 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DentClinic - Preview Premium</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap');
+
+    :root {
+      --bg: #f3f1ec;
+      --surface: #ffffff;
+      --surface-soft: #f8f6f2;
+      --ink: #121212;
+      --ink-soft: #5f605f;
+      --line: #e8e3db;
+      --accent: #1e8f72;
+      --accent-soft: #d9f2ea;
+      --danger: #cf4f3a;
+      --warning: #c88f21;
+      --shadow: 0 10px 30px rgba(23, 25, 22, 0.08);
+      --radius-xl: 22px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Sora', sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 10%, #ece9e1 0%, transparent 30%),
+        radial-gradient(circle at 90% 80%, #e4eee8 0%, transparent 35%),
+        var(--bg);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      background: rgba(243,241,236,.75);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .brand-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-soft), #fff);
+      display: grid;
+      place-items: center;
+      border: 1px solid #c9e9dc;
+      font-weight: 700;
+    }
+
+    .title {
+      font-family: 'Fraunces', serif;
+      font-size: 18px;
+      letter-spacing: .2px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+
+    .wrapper {
+      max-width: 1280px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+      display: grid;
+      gap: 26px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-head h2 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: .2px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 560px;
+    }
+
+    .side {
+      background: #171a18;
+      color: #fff;
+      padding: 18px;
+      border-right: 1px solid rgba(255,255,255,.08);
+    }
+
+    .side .logo {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      margin-bottom: 24px;
+    }
+
+    .nav-item {
+      font-size: 13px;
+      color: rgba(255,255,255,.75);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+    }
+
+    .nav-item.active {
+      background: rgba(30,143,114,.26);
+      color: #fff;
+      border: 1px solid rgba(169, 234, 213, .35);
+    }
+
+    .main {
+      padding: 22px;
+      background: linear-gradient(180deg, #fdfcf9 0%, #f7f5f0 100%);
+    }
+
+    .headline {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      margin-bottom: 18px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .headline h3 {
+      margin: 0;
+      font-family: 'Fraunces', serif;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .muted { color: var(--ink-soft); font-size: 12px; }
+
+    .btns { display: flex; gap: 8px; }
+
+    .btn {
+      font-size: 12px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .btn.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .kpi {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+
+    .kpi .k {
+      font-size: 11px;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .kpi .v {
+      margin-top: 8px;
+      font-size: 30px;
+      font-family: 'Fraunces', serif;
+      line-height: 1;
+    }
+
+    .kpi .d { margin-top: 8px; font-size: 11px; }
+    .up { color: var(--accent); }
+    .down { color: var(--danger); }
+
+    .content-2 {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 12px;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+
+    .panel h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--surface-soft);
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      font-size: 10px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid;
+      font-weight: 600;
+    }
+
+    .chip.ok { color: #166d55; background: #d8f4ea; border-color: #bae5d6; }
+    .chip.wait { color: #875e08; background: #fbefcf; border-color: #f2deab; }
+
+    .agenda-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
+    .day {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      min-height: 230px;
+    }
+
+    .day .d {
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: var(--ink-soft);
+    }
+
+    .slot {
+      font-size: 11px;
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 6px;
+      background: #ebf7f2;
+      border: 1px solid #cdeadc;
+    }
+
+    .slot.warn {
+      background: #fff7df;
+      border-color: #f5e0a6;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .table th, .table td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 10px;
+      text-align: left;
+    }
+
+    .table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: var(--ink-soft);
+      background: #faf8f4;
+    }
+
+    .login {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      min-height: 520px;
+    }
+
+    .hero {
+      background: linear-gradient(140deg, #121614 0%, #27322d 65%, #2f5147 100%);
+      color: #fff;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hero h3 {
+      margin: 0;
+      font-family: 'Fraunces', serif;
+      font-size: 52px;
+      line-height: 1;
+    }
+
+    .form {
+      background: #fff;
+      padding: 36px;
+      display: grid;
+      align-content: center;
+      gap: 12px;
+    }
+
+    .input {
+      border: 1px solid #ddd6c7;
+      background: #fffcf7;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .cta {
+      border: none;
+      background: #101412;
+      color: #fff;
+      border-radius: 10px;
+      padding: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 1024px) {
+      .layout, .login { grid-template-columns: 1fr; }
+      .side { display: none; }
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+      .content-2 { grid-template-columns: 1fr; }
+      .agenda-grid { grid-template-columns: repeat(2, 1fr); }
+      .hero h3 { font-size: 40px; }
+    }
+
+    @media (max-width: 640px) {
+      .kpis { grid-template-columns: 1fr; }
+      .agenda-grid { grid-template-columns: 1fr; }
+      .wrapper { gap: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-badge">DC</div>
+      <div>
+        <div class="title">DentClinic Premium Preview</div>
+        <div class="hint">Conceito visual para validação antes da implementação</div>
+      </div>
+    </div>
+    <div class="hint">Versão mockup • 13/04/2026</div>
+  </div>
+
+  <main class="wrapper">
+    <section class="card">
+      <div class="card-head">
+        <h2>Tela 1 • Login Premium</h2>
+        <span class="hint">Marca mais forte + atmosfera clínica sofisticada</span>
+      </div>
+      <div class="login">
+        <div class="hero">
+          <div class="brand"><div class="brand-badge">DC</div><strong>DentClinic</strong></div>
+          <div>
+            <h3>Gestão de clínica<br/>com padrão<br/>premium.</h3>
+            <p class="hint" style="color: rgba(255,255,255,.7); margin-top:14px; font-size:13px;">Interface refinada para agenda, pacientes e financeiro com identidade personalizada.</p>
+          </div>
+          <div class="hint" style="color: rgba(255,255,255,.55)">Layout responsivo para desktop e mobile</div>
+        </div>
+        <div class="form">
+          <h3 style="margin:0; font-family:'Fraunces',serif; font-size:34px;">Entrar</h3>
+          <span class="muted">Acesse seu painel de atendimento</span>
+          <label class="muted">E-mail</label>
+          <input class="input" value="contato@clinica.com" />
+          <label class="muted">Senha</label>
+          <input class="input" value="••••••••" />
+          <button class="cta">Entrar na conta</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Tela 2 • Dashboard Premium</h2>
+        <span class="hint">KPI mais elegante e leitura rápida</span>
+      </div>
+      <div class="layout">
+        <aside class="side">
+          <div class="logo">DentClinic</div>
+          <div class="nav-item active">Dashboard</div>
+          <div class="nav-item">Agenda</div>
+          <div class="nav-item">Pacientes</div>
+          <div class="nav-item">Prontuário</div>
+          <div class="nav-item">Financeiro</div>
+        </aside>
+        <div class="main">
+          <div class="headline">
+            <div>
+              <h3>Dashboard</h3>
+              <div class="muted">Segunda-feira, 13 de abril de 2026</div>
+            </div>
+            <div class="btns">
+              <button class="btn">Ver Agenda</button>
+              <button class="btn primary">+ Novo Paciente</button>
+            </div>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi"><div class="k">Consultas Hoje</div><div class="v">14</div><div class="d up">10 confirmadas</div></div>
+            <div class="kpi"><div class="k">Faturamento Mês</div><div class="v">R$ 48k</div><div class="d up">+8% vs março</div></div>
+            <div class="kpi"><div class="k">Ocupação</div><div class="v">82%</div><div class="d up">Agenda saudável</div></div>
+            <div class="kpi"><div class="k">Inadimplência</div><div class="v">3.2%</div><div class="d down">Monitorar 5 pacientes</div></div>
+          </div>
+
+          <div class="content-2">
+            <div class="panel">
+              <h4>Consultas de Hoje</h4>
+              <div class="row"><span>08:30</span><span>Ana Costa • Limpeza</span><span class="chip ok">Confirmado</span></div>
+              <div class="row"><span>10:00</span><span>Lucas Melo • Canal</span><span class="chip wait">Pendente</span></div>
+              <div class="row"><span>11:30</span><span>Carla Nunes • Implante</span><span class="chip ok">Confirmado</span></div>
+            </div>
+            <div class="panel">
+              <h4>Alertas</h4>
+              <p class="muted">3 pacientes para retorno</p>
+              <p class="muted">2 itens com estoque crítico</p>
+              <p class="muted">1 cobrança vencendo amanhã</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Tela 3 • Agenda Premium</h2>
+        <span class="hint">Visual mais limpo, cores por prioridade</span>
+      </div>
+      <div class="main" style="padding-top:16px;">
+        <div class="headline" style="margin-bottom:12px;">
+          <div>
+            <h3>Agenda Semanal</h3>
+            <div class="muted">07:00 às 20:00 • visão por dentista</div>
+          </div>
+          <div class="btns">
+            <button class="btn">Bloquear Horário</button>
+            <button class="btn primary">+ Novo Agendamento</button>
+          </div>
+        </div>
+        <div class="agenda-grid">
+          <div class="day"><div class="d">SEG 13</div><div class="slot">08:30 • Ana Costa</div><div class="slot warn">10:00 • Lucas Melo</div><div class="slot">14:00 • Bruna Silva</div></div>
+          <div class="day"><div class="d">TER 14</div><div class="slot">09:15 • Joana Reis</div><div class="slot">11:00 • Marina Luz</div></div>
+          <div class="day"><div class="d">QUA 15</div><div class="slot warn">08:00 • Carlos M.</div><div class="slot">16:30 • Felipe D.</div></div>
+          <div class="day"><div class="d">QUI 16</div><div class="slot">07:45 • Renata P.</div><div class="slot">13:30 • Mateus L.</div></div>
+          <div class="day"><div class="d">SEX 17</div><div class="slot">10:40 • Patrícia C.</div><div class="slot">15:20 • Roberta V.</div></div>
+          <div class="day"><div class="d">SÁB 18</div><div class="slot">09:00 • Caio F.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Tela 4 • Pacientes Premium</h2>
+        <span class="hint">Tabela elegante + ações mais claras</span>
+      </div>
+      <div class="main" style="padding-top:16px;">
+        <div class="headline" style="margin-bottom:12px;">
+          <div>
+            <h3>Pacientes</h3>
+            <div class="muted">Cadastro clínico com foco em produtividade</div>
+          </div>
+          <div class="btns">
+            <button class="btn">Atualizar</button>
+            <button class="btn primary">+ Novo Paciente</button>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Convênio</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ana Costa</td><td>123.***.***-98</td><td>(11) 9****-1122</td><td>Unimed</td><td><span class="chip ok">Ativo</span></td><td>Prontuário • Editar</td></tr>
+            <tr><td>Lucas Melo</td><td>987.***.***-21</td><td>(11) 9****-8899</td><td>Particular</td><td><span class="chip wait">Retorno</span></td><td>Prontuário • Editar</td></tr>
+            <tr><td>Carla Nunes</td><td>654.***.***-45</td><td>(11) 9****-5544</td><td>Bradesco</td><td><span class="chip ok">Ativo</span></td><td>Prontuário • Editar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

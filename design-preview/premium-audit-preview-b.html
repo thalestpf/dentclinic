@@ -1,0 +1,481 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DentClinic - Preview Premium B</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Playfair+Display:wght@500;700&display=swap');
+
+    :root {
+      --bg: #f4f1eb;
+      --bg-deep: #0f1216;
+      --surface: #ffffff;
+      --surface-soft: #fbf8f2;
+      --ink: #111317;
+      --ink-soft: #646a72;
+      --line: #e7dfd2;
+      --gold: #b99654;
+      --gold-soft: #efe2c7;
+      --teal: #1d8f82;
+      --teal-soft: #d5f1ec;
+      --danger: #c84d43;
+      --shadow: 0 14px 42px rgba(16, 17, 19, 0.1);
+      --r-xl: 24px;
+      --r-lg: 16px;
+      --r-md: 12px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Manrope', sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% -10%, #fff6e8 0, transparent 34%),
+        radial-gradient(circle at 90% 10%, #e3efe9 0, transparent 24%),
+        var(--bg);
+    }
+
+    .top {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+      background: rgba(244,241,235,.7);
+      border-bottom: 1px solid #ded5c7;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .sig {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #fff5e0 0%, #e6c990 100%);
+      border: 1px solid #dcbf8a;
+      display: grid; place-items: center;
+      font-weight: 800;
+      color: #3b2e14;
+    }
+
+    .t1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 19px;
+      line-height: 1;
+      letter-spacing: .3px;
+    }
+
+    .sub { font-size: 12px; color: var(--ink-soft); }
+
+    .wrap {
+      max-width: 1300px;
+      margin: 26px auto 42px;
+      padding: 0 16px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .head {
+      border-bottom: 1px solid var(--line);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(180deg, #fff 0%, #fcfaf6 100%);
+    }
+
+    .head h2 { margin: 0; font-size: 14px; letter-spacing: .2px; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: 560px;
+    }
+
+    .nav {
+      background:
+        linear-gradient(180deg, #151920 0%, #0f1319 100%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,.02) 0 2px, transparent 2px 8px);
+      color: #edf1f6;
+      padding: 18px;
+      border-right: 1px solid rgba(255,255,255,.08);
+    }
+
+    .logo { font-family: 'Playfair Display', serif; font-size: 25px; margin-bottom: 6px; }
+    .clinic { font-size: 11px; color: rgba(255,255,255,.56); margin-bottom: 22px; }
+
+    .nav .it {
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: rgba(255,255,255,.75);
+      border: 1px solid transparent;
+    }
+
+    .nav .it.a {
+      background: linear-gradient(120deg, rgba(185,150,84,.16), rgba(29,143,130,.14));
+      border-color: rgba(185,150,84,.35);
+      color: #fff;
+    }
+
+    .main {
+      padding: 22px;
+      background:
+        linear-gradient(180deg, #fffcf7 0%, #f8f4ed 100%);
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero h3 {
+      margin: 0;
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .actions { display: flex; gap: 8px; }
+
+    .btn {
+      border: 1px solid #dacfbf;
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+
+    .btn.g {
+      border-color: #b99654;
+      background: linear-gradient(130deg, #ceb077 0%, #aa8344 100%);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .kpi {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      background: #fff;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .box::after {
+      content: '';
+      position: absolute;
+      inset: auto 0 0;
+      height: 3px;
+      background: linear-gradient(90deg, #d9c29a, #87c6b9);
+      opacity: .8;
+    }
+
+    .kl { font-size: 11px; letter-spacing: .45px; text-transform: uppercase; color: var(--ink-soft); }
+    .kv { margin-top: 8px; font-size: 30px; line-height: 1; font-family: 'Playfair Display', serif; }
+    .kd { margin-top: 8px; font-size: 11px; color: #2f7c70; }
+    .kd.d { color: var(--danger); }
+
+    .grid-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 12px; }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--r-lg);
+      background: #fff;
+      padding: 14px;
+    }
+
+    .card h4 { margin: 0 0 8px; font-size: 13px; }
+
+    .appt {
+      border: 1px solid #ece3d5;
+      border-radius: 10px;
+      background: #fcf8f2;
+      padding: 10px;
+      margin-bottom: 8px;
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .tag {
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid;
+    }
+
+    .ok { background: var(--teal-soft); color: #0c665c; border-color: #9fddd3; }
+    .wait { background: #fff0d8; color: #8a5f15; border-color: #eccc8e; }
+
+    .week {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
+    .day {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      min-height: 230px;
+    }
+
+    .day .h { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; }
+
+    .slot {
+      border: 1px solid #b8e2da;
+      background: #e7f7f3;
+      border-radius: 9px;
+      font-size: 11px;
+      padding: 8px;
+      margin-bottom: 6px;
+    }
+
+    .slot.w {
+      border-color: #efcf8f;
+      background: #fff2dc;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    th, td { border-bottom: 1px solid var(--line); padding: 11px 10px; text-align: left; }
+    th {
+      font-size: 11px;
+      color: var(--ink-soft);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      background: #f9f4eb;
+    }
+
+    .login {
+      min-height: 520px;
+      display: grid;
+      grid-template-columns: 1.12fr 1fr;
+    }
+
+    .left {
+      background:
+        radial-gradient(circle at 12% 12%, rgba(243,221,172,.18), transparent 25%),
+        linear-gradient(140deg, #10151b 0%, #1b2430 55%, #283845 100%);
+      color: #fff;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .left h3 {
+      margin: 0;
+      font-family: 'Playfair Display', serif;
+      font-size: 54px;
+      line-height: .95;
+      letter-spacing: .2px;
+    }
+
+    .left .gold { color: #edcf95; }
+
+    .right {
+      background: linear-gradient(180deg, #fff 0%, #f7f2e9 100%);
+      padding: 38px;
+      display: grid;
+      align-content: center;
+      gap: 10px;
+    }
+
+    .field {
+      border: 1px solid #d9ceb9;
+      background: #fffdfa;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .cta {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px;
+      background: linear-gradient(130deg, #c4a468 0%, #9e753a 100%);
+      color: #fff;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 1024px) {
+      .app, .login { grid-template-columns: 1fr; }
+      .nav { display: none; }
+      .kpi { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .week { grid-template-columns: repeat(2, 1fr); }
+      .left h3 { font-size: 42px; }
+    }
+
+    @media (max-width: 640px) {
+      .kpi { grid-template-columns: 1fr; }
+      .week { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">
+      <div class="sig">DC</div>
+      <div>
+        <div class="t1">DentClinic Premium • Versão B</div>
+        <div class="sub">Conceito executivo com toque sofisticado</div>
+      </div>
+    </div>
+    <div class="sub">Prévia visual • 13/04/2026</div>
+  </div>
+
+  <main class="wrap">
+    <section class="panel">
+      <div class="head"><h2>Tela 1 • Login (Versão B)</h2><span class="sub">Atmosfera mais luxuosa e contraste profundo</span></div>
+      <div class="login">
+        <div class="left">
+          <div class="brand"><div class="sig">DC</div><strong>DentClinic</strong></div>
+          <div>
+            <h3>Experiência<br/><span class="gold">premium</span><br/>de gestão clínica.</h3>
+            <p class="sub" style="color: rgba(255,255,255,.72); margin-top: 16px; font-size: 13px;">Visual de alto padrão para recepção, agenda e acompanhamento financeiro.</p>
+          </div>
+          <div class="sub" style="color: rgba(255,255,255,.5);">Acessível e responsivo para rotina intensa</div>
+        </div>
+        <div class="right">
+          <h3 style="margin:0; font-family:'Playfair Display',serif; font-size:34px;">Entrar</h3>
+          <span class="sub">Use suas credenciais para acessar o painel</span>
+          <label class="sub">E-mail</label>
+          <input class="field" value="gestao@dentclinic.com" />
+          <label class="sub">Senha</label>
+          <input class="field" value="••••••••" />
+          <button class="cta">Acessar agora</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="head"><h2>Tela 2 • Dashboard (Versão B)</h2><span class="sub">Look editorial com dourado discreto</span></div>
+      <div class="app">
+        <aside class="nav">
+          <div class="logo">DentClinic</div>
+          <div class="clinic">Clínica Santorini</div>
+          <div class="it a">Dashboard</div>
+          <div class="it">Agenda</div>
+          <div class="it">Pacientes</div>
+          <div class="it">Prontuário</div>
+          <div class="it">Financeiro</div>
+        </aside>
+        <div class="main">
+          <div class="hero">
+            <div>
+              <h3>Painel Executivo</h3>
+              <div class="sub">Segunda, 13 de abril de 2026</div>
+            </div>
+            <div class="actions"><button class="btn">Relatório</button><button class="btn g">+ Novo Paciente</button></div>
+          </div>
+
+          <div class="kpi">
+            <div class="box"><div class="kl">Consultas Hoje</div><div class="kv">18</div><div class="kd">12 confirmadas</div></div>
+            <div class="box"><div class="kl">Receita Mensal</div><div class="kv">R$ 62k</div><div class="kd">Crescimento consistente</div></div>
+            <div class="box"><div class="kl">Ocupação</div><div class="kv">87%</div><div class="kd">Alta performance</div></div>
+            <div class="box"><div class="kl">Inadimplência</div><div class="kv">2.1%</div><div class="kd d">Atenção em 3 casos</div></div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h4>Consultas de Hoje</h4>
+              <div class="appt"><span>08:00</span><span>Carla Nunes • Implante</span><span class="tag ok">Confirmado</span></div>
+              <div class="appt"><span>10:15</span><span>Rafael Lima • Revisão</span><span class="tag wait">Pendente</span></div>
+              <div class="appt"><span>13:40</span><span>Joana Cruz • Clareamento</span><span class="tag ok">Confirmado</span></div>
+            </div>
+            <div class="card">
+              <h4>Insights</h4>
+              <p class="sub">Retornos sugeridos: 4 pacientes</p>
+              <p class="sub">Faturamento diário acima da meta</p>
+              <p class="sub">Agenda de quinta quase completa</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="head"><h2>Tela 3 • Agenda (Versão B)</h2><span class="sub">Estrutura elegante para operação diária</span></div>
+      <div class="main" style="padding-top:16px;">
+        <div class="hero" style="margin-bottom:12px;">
+          <div>
+            <h3>Agenda Semanal</h3>
+            <div class="sub">Visão premium com prioridade visual por status</div>
+          </div>
+          <div class="actions"><button class="btn">Bloquear</button><button class="btn g">+ Agendar</button></div>
+        </div>
+        <div class="week">
+          <div class="day"><div class="h">SEG 13</div><div class="slot">08:00 • Carla N.</div><div class="slot w">10:15 • Rafael L.</div><div class="slot">14:30 • Vanessa P.</div></div>
+          <div class="day"><div class="h">TER 14</div><div class="slot">09:20 • Hugo R.</div><div class="slot">11:50 • Aline M.</div></div>
+          <div class="day"><div class="h">QUA 15</div><div class="slot w">07:40 • Beatriz S.</div><div class="slot">16:20 • Renan F.</div></div>
+          <div class="day"><div class="h">QUI 16</div><div class="slot">08:10 • Pamela D.</div><div class="slot">13:00 • Murilo T.</div></div>
+          <div class="day"><div class="h">SEX 17</div><div class="slot">10:00 • Thais C.</div><div class="slot">15:10 • Sergio A.</div></div>
+          <div class="day"><div class="h">SÁB 18</div><div class="slot">09:30 • Fabio Q.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="head"><h2>Tela 4 • Pacientes (Versão B)</h2><span class="sub">Tabela premium com leitura executiva</span></div>
+      <div class="main" style="padding-top:16px;">
+        <div class="hero" style="margin-bottom:12px;">
+          <div>
+            <h3>Pacientes</h3>
+            <div class="sub">Cadastro e status com foco em decisão rápida</div>
+          </div>
+          <div class="actions"><button class="btn">Atualizar</button><button class="btn g">+ Novo</button></div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Convênio</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Carla Nunes</td><td>654.***.***-45</td><td>(11) 9****-5544</td><td>Bradesco</td><td><span class="tag ok">Ativo</span></td><td>Prontuário • Editar</td></tr>
+            <tr><td>Rafael Lima</td><td>321.***.***-18</td><td>(11) 9****-4455</td><td>Particular</td><td><span class="tag wait">Retorno</span></td><td>Prontuário • Editar</td></tr>
+            <tr><td>Joana Cruz</td><td>888.***.***-99</td><td>(11) 9****-9911</td><td>SulAmérica</td><td><span class="tag ok">Ativo</span></td><td>Prontuário • Editar</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
