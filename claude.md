@@ -92,10 +92,15 @@ components/               → Componentes reutilizáveis
 | `/precos` | Cadastro de procedimentos | ✅ CREATE/READ/UPDATE/DELETE |
 | `/login` | Autenticação com seleção de perfil | ✅ Roles dinâmicos |
 
+### 🟢 PRONTO (com dados reais Supabase)
+| Rota | Função | Status |
+|---|---|---|
+| `/dashboard` | KPIs + próxima consulta + gráfico semanal | ✅ Consultas hoje, taxa de confirmação, consultas na semana, pacientes ativos, gráfico semana (Seg-Sex) — tudo via Supabase filtrado por `clinica_id` |
+| `/agenda` | Calendário Semana/Dia multi-dentista + bloqueios | ✅ CRUD completo via `useAgendamento.ts` + `/api/bloqueios` — **UI refinada**: paleta harmonizada, modais em gradiente escuro, chips filtro dentistas, botão Hoje, linha "agora", altura do bloco pela duração, KPI cards padrão Dashboard |
+
 ### 🟡 PARCIALMENTE PRONTO (Interface OK, dados mock)
 | Rota | Função | Status |
 |---|---|---|
-| `/dashboard` | KPIs e faturamento | Interface pronta, dados estáticos |
 | `/financeiro` | Contas a pagar/receber | Interface pronta, dados estáticos |
 | `/estoque` | Controle de materiais | Interface pronta, sem CRUD |
 | `/prontuario` | Prontuários com odontograma | Interface completa, dados estáticos |
@@ -124,7 +129,7 @@ components/               → Componentes reutilizáveis
 | `precos` | ⏳ localStorage (`precos`) |
 | `estoque` | ⏳ localStorage (sem CRUD) |
 | Sessão cliente | localStorage (`dentclinic_*`) |
-| Bloqueios de agenda | localStorage (`agenda_bloqueios`) |
+| Bloqueios de agenda | ✅ Supabase via `/api/bloqueios` (dia_semana / data / horario) |
 | Config WhatsApp | localStorage (`integracao_whatsapp`) |
 
 ### API Routes disponíveis
@@ -137,6 +142,7 @@ components/               → Componentes reutilizáveis
 | `/api/secretarias` | GET, POST | Gestão de secretárias |
 | `/api/admin/create-user` | POST | Criar usuário admin |
 | `/api/migrate` | POST | Migração de dados |
+| `/api/bloqueios` | GET, POST, DELETE | CRUD de bloqueios de agenda (dia_semana / data / horario) |
 | `/api/n8n/agendamento` | POST | Receber agendamento via n8n/WhatsApp |
 | `/api/n8n/dentistas` | GET | Listar dentistas para n8n |
 | `/api/n8n/clinica` | GET | Dados da clínica para n8n |
@@ -264,26 +270,58 @@ const s = {
 
 ## Funcionalidades Prontas
 
-### ✅ Agenda (CRUD Completo — Supabase)
-- **CREATE:** Modal "Novo agendamento" → paciente, data, hora, procedimento, dentista
-- **READ:** Calendário semanal (view Semana/Dia) com blocos coloridos por dentista
-- **UPDATE:** Clique no agendamento → edita → salva
-- **DELETE:** Modal com botão "Cancelar" (delete com confirmação)
+### ✅ Agenda (CRUD Completo — Supabase, UI refinada)
+- **CREATE:** Modal "Novo agendamento" com seções (Paciente / Consulta / Observações) e header dark gradient
+- **READ:** Calendário Semana/Dia com blocos coloridos por dentista (paleta harmonizada: mint, azul, âmbar, púrpura, coral...)
+- **UPDATE:** Clique no agendamento → modal detalhe dark gradient → botão Editar
+- **DELETE:** Modal detalhe com botão "Cancelar" (delete com confirmação)
 - **Supabase:** tabela `agendamentos` via hook `useAgendamento.ts`
 - **Dentistas:** buscados do Supabase (`dentistas` filtrado por `clinica_id + status=ativo`)
 - **Pacientes autocomplete:** buscados do Supabase (`pacientes`)
-- **Clínica:** obtida via `GET /api/clinica` (service_role)
-- **Filtro:** dropdown de seleção por dentista (substituiu botões coloridos)
-- **Vista:** Semana (multi-dentista por colunas) e Dia
-- **Bloqueios:** dias da semana, datas avulsas e horários → localStorage (`agenda_bloqueios`)
+- **Clínica:** obtida via `GET /api/clinica` (service_role), fallback de `localStorage.dentclinic_clinica_id`
+- **Filtro dentistas:** chips toggle coloridos com contador (≤6) ou select (>6)
+- **Vista:** Semana (Seg-Sáb) e Dia (multi-dentista por colunas com avatar de iniciais)
+- **Bloqueios:** dias da semana, datas avulsas e horários → `/api/bloqueios` (Supabase)
+- **UX:**
+  - Botão "Hoje" volta à data atual em qualquer vista
+  - Linha vermelha "agora" (com dot pulsante) na coluna do dia de hoje
+  - Altura do bloco de agendamento reflete `a.duracao` (não mais 60 min fixo)
+  - Clique em célula vazia cria agendamento (cursor copy)
+  - Hover em blocos com lift + shadow
+  - Iniciais corretas de dentistas (primeiro + último nome)
+  - Próxima consulta marcada com tag "AGORA" mint no sidebar
+  - Sidebar "Hoje" com "+N mais" / "Recolher" quando > 5 agendamentos
+- **Visual:**
+  - KPI cards padrão Dashboard (grid 4 colunas) — substituindo o antigo KPI strip
+  - Modais em `linear-gradient(135deg, #1C1C1E, #2C2C2E)` com close `<X>` lucide em badge translúcido
+  - Toast com ícones lucide (`CheckCircle2`/`XCircle`) em vez de emoji
+  - "Bloquear Agenda" renomeado para "Dias sem atendimento" (com ícone `CalendarOff`)
+  - Skeleton shimmer na vista de calendário durante carregamento
+  - Background `#F8F8F8` (era `#F5F6FA`)
 
-### ✅ Pacientes (CRUD — Supabase)
-- **CREATE:** "+ Novo Paciente" → formulário completo
-- **READ:** Tabela com busca por nome/CPF
-- **UPDATE:** "Editar" → modal → salva
-- **DELETE:** "Excluir" → confirmação → remove
-- **Supabase:** tabela `pacientes` (query direta via `supabase-client`)
-- **KPIs dinâmicos:** Total, Ativos, Novos este mês
+### ✅ Dashboard (Dados reais — Supabase)
+- **Banner:** Saudação dinâmica (bom dia/tarde/noite) + data capitalizada + bloco "Próxima consulta" com dot pulsante
+- **Banner button:** Ghost translúcido (não o antigo mint chamativo) → abre agenda
+- **4 KPIs reais:**
+  - Consultas hoje (barra = taxa de confirmação) — mint
+  - Taxa de confirmação (% confirmados / total hoje) — azul
+  - Consultas na semana (query Seg-Sex agrupada por data) — cinza neutro
+  - Pacientes ativos (count Supabase filtrado por `clinica_id` + `status=ativo`) — cinza neutro
+- **Card "Consultas de hoje":** Lista completa com destaque mint + tag "AGORA" na próxima
+- **Gráfico semanal:** Consultas por dia Seg-Sex com dados reais do Supabase (sem mock)
+- **Ações rápidas:** 2x2 com ícones cinza uniformes (paleta reduzida)
+- **Grid inferior:** "Alertas de retorno" + "Estoque crítico" (2 cards placeholder com subtítulos explicativos, ícones neutros)
+
+### ✅ Pacientes (CRUD — Supabase, UI refinada)
+- **CREATE:** "Novo Paciente" → modal com seções (Dados pessoais / Contato / Atendimento), 2 colunas
+- **READ:** Tabela com hover por linha, avatar colorido `{bg, text}` harmônico, CPF embaixo do nome
+- **UPDATE:** Menu kebab (⋮) → Editar → modal
+- **DELETE:** Menu kebab (⋮) → Excluir → confirmação
+- **Supabase:** tabela `pacientes` (query direta via `supabase-client`, filtro por `clinica_id`)
+- **KPIs dinâmicos:** Total cadastrado (% ativos na barra), Ativos, Novos este mês (meta 20)
+- **Filtros:** chips toggle (Todos / Ativos / Inativos) com contadores em pill
+- **Botão Prontuário:** primário azul claro com ícone, ao lado do kebab
+- **Skeleton shimmer + empty state:** ícone em círculo pastel + CTA preto
 
 ### ✅ Orçamento (CRUD Completo)
 - **CREATE:** "Novo Orçamento" → seleção de procedimentos
@@ -421,12 +459,14 @@ GOOGLE_GENAI_API_KEY=
 ## Próximas Implementações (Roadmap)
 
 ### ✅ IMPLEMENTADO
-- [x] **Agenda** — CRUD completo no Supabase via `useAgendamento.ts`, vista Semana/Dia, multi-dentista
+- [x] **Agenda** — CRUD completo no Supabase via `useAgendamento.ts`, vista Semana/Dia, multi-dentista + UI refinada (paleta harmonizada, chips filtro, modais dark, linha "agora", botão Hoje, altura pela duração, KPI cards)
+- [x] **Bloqueios de agenda** — API `/api/bloqueios` (dia_semana / data / horario) no Supabase
 - [x] **Autenticação** — `/api/auth/login` + tabela `usuarios` + bcrypt
 - [x] **Super Admin - Clínicas** — CRUD no Supabase, `/api/clinica`
 - [x] **Super Admin - Dentistas** — CRUD no Supabase, filtrado por `clinica_id`
 - [x] **Super Admin - Integrações** — WhatsApp + n8n + templates + automações
-- [x] **Pacientes** — CRUD no Supabase via `supabase-client`
+- [x] **Pacientes** — CRUD no Supabase + UI refinada (kebab, chips, modal em seções)
+- [x] **Dashboard** — Dados reais do Supabase (KPIs, próxima consulta, gráfico semanal Seg-Sex, pacientes ativos)
 - [x] **API Routes n8n** — agendamento, dentistas, clínica, disponibilidade, sessão
 
 ### 🔴 CRÍTICO
@@ -434,10 +474,11 @@ GOOGLE_GENAI_API_KEY=
 - [ ] Migrar Preços/Procedimentos de localStorage para Supabase
 
 ### 🟡 IMPORTANTE
-- [ ] Conectar Dashboard aos dados reais (Agenda, Pacientes, Orçamentos)
+- [ ] Conectar Dashboard a Faturamento quando módulo financeiro existir
 - [ ] CRUD completo para Estoque (entrada/saída de materiais)
 - [ ] Sincronizar Prontuário com Pacientes
 - [ ] Relatórios dinâmicos (Financeiro, Procedimentos por dentista)
+- [ ] Aplicar padrão visual refinado (kebab, chips, shimmer) em Orçamento, Preços
 
 ### 🟢 NICE-TO-HAVE
 - [ ] Tema escuro
@@ -463,6 +504,30 @@ GOOGLE_GENAI_API_KEY=
 - **Inline styles only** — zero Tailwind, zero CSS modules
   - `const s = { ... }` no final de cada componente
   - Cores padronizadas: mint (`#A8D5C2`), dark (`#1A1A1A`), muted (`#888`)
+  - Background de página: sempre `#F8F8F8` (nunca `#F5F6FA` ou outros)
+
+- **Padrões de Design refinados (aplicados em Pacientes, Dashboard e Agenda)** — usar como referência ao revisar outras telas:
+  - **Tabelas:** sem zebra; hover por linha em `#FAFAFA` via `useState(hoverRowId)`; header `<th>` fundo `#fff` (evita colisão com card arredondado); `overflow: visible` no card da tabela para permitir dropdowns
+  - **Ações em tabela:** botão primário visível (ex: "Prontuário") + menu kebab (⋮) para secundárias (Editar, Excluir). Kebab abre dropdown `position:absolute` com overlay invisível `fixed inset:0 zIndex:10` para fechar ao clicar fora
+  - **Filtros:** chips toggle em container `background:#F5F5F5 padding:3 borderRadius:8`, com contador em pill — em vez de `<select>`
+  - **Modal de formulário:** header em gradiente escuro `linear-gradient(135deg,#1C1C1E,#2C2C2E)`; corpo dividido em seções (título uppercase `#AAA letterSpacing:1px` + linha tracejada `borderBottom:'1px dashed #F0F0F0'`); footer com borda superior separando ações; `maxWidth:580` com `formRow grid 1fr 1fr` para campos curtos
+  - **Botão fechar modal:** ícone `<X>` do lucide em badge `rgba(255,255,255,0.08)` 30x30 — nunca `✕` texto
+  - **Toast/feedback:** ícones lucide (`CheckCircle2`/`XCircle`) — nunca emoji (`✅`/`❌`)
+  - **Skeleton:** sempre com animação `shimmer` via keyframe injetado com `<style>` no topo do componente: `@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }` + `animation:'shimmer 1.4s infinite linear'` e `backgroundSize:'200% 100%'`
+  - **Empty state:** ícone lucide em `emptyIconWrap` (círculo 60x60 `#F5F5F5`), título + subtítulo cinza, CTA preto com ícone lucide
+  - **KPI cards:** barra de progresso deve representar métrica real (nunca fórmula arbitrária tipo `total * 10`). Cores da barra em gradiente (`linear-gradient(90deg,#X,#Y)`) para visual mais refinado
+  - **Avatar:** cor via mapa `{bg, text}` — nunca gambiarra de `.replace()` em hex
+    ```js
+    const CORES_AVATAR = [
+      { bg: '#A8D5C2', text: '#3E7D63' },
+      { bg: '#B5CFF5', text: '#3A5FA5' },
+      { bg: '#F5D5A8', text: '#A57A3A' },
+      { bg: '#D5B5F5', text: '#6B3FA5' },
+      { bg: '#F5C4B5', text: '#A55A3A' },
+    ];
+    ```
+  - **Paleta de cores comedida:** em cards/KPIs, preferir cinza neutro (`#F5F5F5` bg, `#666` ícone) para métricas secundárias. Cores vivas (mint, azul, vermelho) reservadas para métricas primárias ou estados de alerta real
+  - **Query Supabase em componentes:** sempre filtrar por `clinica_id` quando disponível (`if (clinicaId) query = query.eq('clinica_id', clinicaId)`)
 
 - **Datas em formato BR:** `toLocaleDateString('pt-BR')` para exibição
   - Storage: ISO (`YYYY-MM-DD`)

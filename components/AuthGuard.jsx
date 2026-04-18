@@ -10,6 +10,7 @@ const ROTA_MODULO = {
   '/dashboard': 'dashboard',
   '/agenda': 'agenda',
   '/pacientes': 'pacientes',
+  '/whatsapp': 'whatsapp',
   '/prontuario': 'prontuario',
   '/orcamento': 'orcamento',
   '/financeiro': 'financeiro',
@@ -65,11 +66,27 @@ export default function AuthGuard({ children }) {
 
   const carregarDadosUsuario = async (userId) => {
     try {
-      const { data } = await supabase
+      let data = null;
+      let erro = null;
+
+      const consultaPorId = await supabase
         .from('user_roles')
         .select('role, clinica_id')
-        .eq('user_id', userId)
-        .single();
+        .eq('id', userId)
+        .maybeSingle();
+
+      data = consultaPorId.data;
+      erro = consultaPorId.error;
+
+      if (!data) {
+        const consultaPorUserId = await supabase
+          .from('user_roles')
+          .select('role, clinica_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        data = consultaPorUserId.data;
+        erro = consultaPorUserId.error;
+      }
 
       const userRole = data?.role || 'dentista';
       const clinicaId = data?.clinica_id || null;

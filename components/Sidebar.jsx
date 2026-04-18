@@ -12,6 +12,7 @@ const navItems = [
       { id: 'dashboard', label: 'Dashboard', icon: <GridIcon />, roles: ['dentista', 'secretaria'] },
       { id: 'agenda', label: 'Agenda', icon: <CalendarIcon />, roles: ['dentista', 'secretaria'] },
       { id: 'pacientes', label: 'Pacientes', icon: <UserIcon />, roles: ['dentista', 'secretaria'] },
+      { id: 'whatsapp', label: 'WhatsApp', icon: <WhatsAppIcon />, roles: ['dentista', 'secretaria'] },
       { id: 'prontuario', label: 'Prontuário', icon: <FileIcon />, roles: ['dentista'] },
       { id: 'orcamento', label: 'Orçamento', icon: <ClipboardIcon />, roles: ['dentista', 'secretaria'] },
     ],
@@ -47,6 +48,7 @@ const bottomItems = [
   { id: 'dashboard', label: 'Início', icon: <GridIcon /> },
   { id: 'agenda', label: 'Agenda', icon: <CalendarIcon /> },
   { id: 'pacientes', label: 'Pacientes', icon: <UserIcon /> },
+  { id: 'whatsapp', label: 'WhatsApp', icon: <WhatsAppIcon /> },
   { id: 'prontuario', label: 'Prontuário', icon: <FileIcon /> },
   { id: 'financeiro', label: 'Financeiro', icon: <DollarIcon /> },
 ];
@@ -178,7 +180,12 @@ export default function Sidebar() {
       // Super admin não tem restrição de plano
       if (role === 'super_admin') return true;
       // Se há plano configurado, verificar se o módulo está habilitado
-      if (modulosHabilitados !== null && !modulosHabilitados.includes(item.id)) return false;
+      if (modulosHabilitados !== null) {
+        const moduloHabilitado = item.id === 'whatsapp'
+          ? (modulosHabilitados.includes('whatsapp') || modulosHabilitados.includes('integracao_whatsapp'))
+          : modulosHabilitados.includes(item.id);
+        if (!moduloHabilitado) return false;
+      }
       return true;
     }),
   })).filter(section => section.items.length > 0);
@@ -314,6 +321,14 @@ function UserIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  );
+}
+function WhatsAppIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.5 11.5a8.5 8.5 0 0 1-12.5 7.5L3 20.5 4.5 16A8.5 8.5 0 1 1 20.5 11.5Z" />
+      <path d="M9.5 8.5c.2 1.5 1.3 3.3 2.6 4.6 1.3 1.3 3.1 2.4 4.6 2.6" />
     </svg>
   );
 }
