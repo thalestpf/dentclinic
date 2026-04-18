@@ -21,6 +21,9 @@ export default function Dashboard() {
   const [totalSemana, setTotalSemana]         = useState(0);
   const [dadosSemana, setDadosSemana]         = useState([0,0,0,0,0]);
   const [pacientesAtivos, setPacientesAtivos] = useState(0);
+  const [roleUsuario, setRoleUsuario]         = useState('dentista');
+  const [kpisAdmin, setKpisAdmin]             = useState({ totalClinicas: 0, clinicasAtivas: 0, dentistasAtivos: 0, totalUsuarios: 0, sessoesWhatsapp: 0 });
+  const [clinicasRecentes, setClinicasRecentes] = useState([]);
   const [carregando, setCarregando]           = useState(true);
   const [nomeUsuario, setNomeUsuario]         = useState('');
 
@@ -41,12 +44,36 @@ export default function Dashboard() {
     setClinicaId(id || null);
     const nome = localStorage.getItem('dentclinic_name') || 'Usuário';
     setNomeUsuario(nome.split(' ')[0]);
+    const role = localStorage.getItem('dentclinic_role') || 'dentista';
+    setRoleUsuario(role);
   }, []);
 
   useEffect(() => {
     const carregar = async () => {
       setCarregando(true);
       try {
+        if (roleUsuario === 'super_admin') {
+          const [resClinicas, resDentistas, resUsuarios, resSessoes] = await Promise.all([
+            supabase.from('clinicas').select('id,nome,status,criado_em').order('criado_em', { ascending: false }),
+            supabase.from('dentistas').select('id,status'),
+            supabase.from('user_roles').select('id,role'),
+            supabase.from('sessoes_whatsapp').select('id', { count: 'exact', head: true }),
+          ]);
+
+          const dadosClinicas = resClinicas.data || [];
+          const dadosDentistas = resDentistas.data || [];
+          const dadosUsuarios = resUsuarios.data || [];
+
+          setKpisAdmin({
+            totalClinicas: dadosClinicas.length,
+            clinicasAtivas: dadosClinicas.filter(c => c.status === 'ativo').length,
+            dentistasAtivos: dadosDentistas.filter(d => d.status === 'ativo').length,
+            totalUsuarios: dadosUsuarios.filter(u => u.role !== 'super_admin').length,
+            sessoesWhatsapp: resSessoes.count || 0,
+          });
+          setClinicasRecentes(dadosClinicas.slice(0, 6));
+          return;
+        }
         // ── Agendamentos de hoje ──
         let qHoje = supabase
           .from('agendamentos')
@@ -110,7 +137,7 @@ export default function Dashboard() {
     };
 
     carregar();
-  }, [hoje, clinicaId]);
+  }, [hoje, clinicaId, roleUsuario]);
 
   const iniciais = (nome) => {
     if (!nome) return '?';
@@ -139,6 +166,141 @@ export default function Dashboard() {
     { label: 'Novo orçamento',icon: Activity,   rota: '/orcamento' },
     { label: 'Ver estoque',   icon: Package,    rota: '/estoque' },
   ];
+
+  if (roleUsuario === 'super_admin') {
+    const acoesGestao = [
+      { label: 'Gerenciar clínicas', icon: BarChart2, rota: '/super-admin/clinicas' },
+      { label: 'Gerenciar dentistas', icon: Users, rota: '/super-admin/dentistas' },
+      { label: 'Criar usuário', icon: CheckCircle2, rota: '/super-admin/criar-usuario' },
+      { label: 'Integrações', icon: Activity, rota: '/super-admin/integracoes' },
+    ];
+
+    return (
+      <div style={s.main}>
+        <style>{`@keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }`}</style>
+
+        <div style={s.banner}>
+          <div style={{ flex: 1 }}>
+            <div style={s.bannerSaudacao}>{saudacao}, {nomeUsuario}</div>
+            <div style={s.bannerData}>
+              Painel gerencial do sistema · {hojeFormatado.charAt(0).toUpperCase() + hojeFormatado.slice(1)}
+            </div>
+            <div style={s.proximaConsulta}>
+              <div style={s.proximaDot} />
+              <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12 }}>
+                Visão consolidada de clínicas, usuários, dentistas e WhatsApp
+              </span>
+            </div>
+          </div>
+
+          <button style={s.bannerBtn} onClick={() => router.push('/super-admin/clinicas')}>
+            Abrir gestão <ArrowRight size={13} />
+          </button>
+        </div>
+
+        <div style={s.kpiGrid}>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Clínicas ativas</div>
+            <div style={s.kpiValue}>{carregando ? 'â€”' : kpisAdmin.clinicasAtivas}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>de {kpisAdmin.totalClinicas} cadastradas</div>
+          </div>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Dentistas ativos</div>
+            <div style={s.kpiValue}>{carregando ? 'â€”' : kpisAdmin.dentistasAtivos}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>rede total</div>
+          </div>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Usuários (não admin)</div>
+            <div style={s.kpiValue}>{carregando ? 'â€”' : kpisAdmin.totalUsuarios}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>dentistas + secretárias</div>
+          </div>
+          <div style={s.kpiCard}>
+            <div style={s.kpiLabel}>Sessões WhatsApp</div>
+            <div style={s.kpiValue}>{carregando ? 'â€”' : kpisAdmin.sessoesWhatsapp}</div>
+            <div style={{ fontSize: 12, color: '#888' }}>atendimento centralizado</div>
+          </div>
+        </div>
+
+        <div style={s.gridPrincipal}>
+          <div style={s.cardGrande}>
+            <div style={s.cardHeader}>
+              <div>
+                <div style={s.cardTitulo}>Últimas clínicas cadastradas</div>
+                <div style={s.cardSub}>Acompanhamento do crescimento da base</div>
+              </div>
+              <button style={s.linkBtn} onClick={() => router.push('/super-admin/clinicas')}>
+                Ver todas <ChevronRight size={12} />
+              </button>
+            </div>
+
+            {carregando ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[1,2,3,4].map(i => <div key={i} style={s.skeleton} />)}
+              </div>
+            ) : clinicasRecentes.length === 0 ? (
+              <div style={s.emptyState}>
+                <div style={s.emptyIconWrap}>
+                  <BarChart2 size={26} color="#BBB" />
+                </div>
+                <div style={{ fontSize: 14, color: '#888', marginTop: 14, fontWeight: 500 }}>
+                  Nenhuma clínica cadastrada
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {clinicasRecentes.map((clinica) => (
+                  <div key={clinica.id} style={s.apptItem}>
+                    <div style={{ ...s.apptAvatar, background: '#F0F0F0', color: '#555' }}>
+                      {(clinica.nome || 'C').charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {clinica.nome}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#AAA', marginTop: 2 }}>
+                        {clinica.criado_em ? new Date(clinica.criado_em).toLocaleDateString('pt-BR') : 'Data não informada'}
+                      </div>
+                    </div>
+                    <Badge color={clinica.status === 'ativo' ? 'green' : 'gray'}>
+                      {clinica.status === 'ativo' ? 'Ativa' : 'Inativa'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={s.card}>
+              <div style={s.cardTitulo}>Ações de gestão</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
+                {acoesGestao.map((acao) => (
+                  <button key={acao.label} style={s.acaoBtn} onClick={() => router.push(acao.rota)}>
+                    <div style={s.acaoIconBox}>
+                      <acao.icon size={15} color="#666" />
+                    </div>
+                    <span style={{ fontSize: 11, color: '#333', fontWeight: 500, lineHeight: 1.3 }}>
+                      {acao.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={s.card}>
+              <div style={s.cardTitulo}>Resumo administrativo</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12 }}><span style={{ color:'#888' }}>Clínicas ativas</span><strong>{kpisAdmin.clinicasAtivas}</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12 }}><span style={{ color:'#888' }}>Dentistas ativos</span><strong>{kpisAdmin.dentistasAtivos}</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12 }}><span style={{ color:'#888' }}>Usuários operacionais</span><strong>{kpisAdmin.totalUsuarios}</strong></div>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12 }}><span style={{ color:'#888' }}>Sessões WhatsApp</span><strong>{kpisAdmin.sessoesWhatsapp}</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={s.main}>

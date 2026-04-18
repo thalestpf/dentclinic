@@ -66,8 +66,22 @@ export default function Login() {
 
   return (
     <div style={s.root}>
+      <style>{`
+        @media (max-width: 980px), (max-height: 760px) {
+          .login-left-panel {
+            display: none !important;
+          }
+          .login-right-panel {
+            flex: 1 1 100% !important;
+            padding: 20px !important;
+          }
+          .login-card {
+            max-width: 420px !important;
+          }
+        }
+      `}</style>
       {/* Left panel */}
-      <div style={s.left}>
+      <div className="login-left-panel" style={s.left}>
         <div style={s.brand}>
           <div style={s.brandIcon}>
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round">
@@ -83,8 +97,8 @@ export default function Login() {
       </div>
 
       {/* Right panel */}
-      <div style={s.right}>
-        <div style={s.card}>
+      <div className="login-right-panel" style={s.right}>
+        <div className="login-card" style={s.card}>
           <h2 style={s.title}>Entrar na conta</h2>
           <p style={s.subtitle}>Acesse seu painel de controle</p>
 
@@ -131,14 +145,14 @@ export default function Login() {
 }
 
 const s = {
-  root: { display: 'flex', minHeight: '100vh', background: '#fff' },
-  left: { flex: 1, background: 'linear-gradient(135deg, #1A1A1A 0%, #2D3436 100%)', padding: '60px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
-  brand: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 60 },
+  root: { display: 'flex', minHeight: '100dvh', height: '100dvh', background: '#fff', overflow: 'hidden' },
+  left: { flex: 1, background: 'linear-gradient(135deg, #1A1A1A 0%, #2D3436 100%)', padding: '44px 36px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 48 },
+  brand: { display: 'flex', alignItems: 'center', gap: 16 },
   brandIcon: { width: 64, height: 64, background: '#A8D5C2', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   brandName: { fontSize: 34, fontWeight: 700, color: '#fff', fontFamily: "'DM Serif Display', serif" },
-  hero: { fontSize: 48, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.2, marginBottom: 20, fontFamily: "'DM Serif Display', serif" },
-  heroSub: { fontSize: 16, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.6 },
-  right: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 60px' },
+  hero: { fontSize: 'clamp(34px, 4vw, 48px)', fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1.2, marginBottom: 16, fontFamily: "'DM Serif Display', serif" },
+  heroSub: { fontSize: 15, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.5, maxWidth: 520 },
+  right: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '28px 40px', overflowY: 'auto' },
   card: { width: '100%', maxWidth: 400 },
   title: { fontSize: 28, fontWeight: 700, color: '#1A1A1A', margin: '0 0 8px 0', fontFamily: "'DM Serif Display', serif" },
   subtitle: { fontSize: 14, color: '#888', margin: '0 0 32px 0' },

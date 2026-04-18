@@ -9,7 +9,7 @@ const navItems = [
   {
     section: 'Principal',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: <GridIcon />, roles: ['dentista', 'secretaria'] },
+      { id: 'dashboard', label: 'Dashboard', icon: <GridIcon />, roles: ['dentista', 'secretaria', 'super_admin'] },
       { id: 'agenda', label: 'Agenda', icon: <CalendarIcon />, roles: ['dentista', 'secretaria'] },
       { id: 'pacientes', label: 'Pacientes', icon: <UserIcon />, roles: ['dentista', 'secretaria'] },
       { id: 'whatsapp', label: 'WhatsApp', icon: <WhatsAppIcon />, roles: ['dentista', 'secretaria'] },
