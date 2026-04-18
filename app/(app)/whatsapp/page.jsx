@@ -580,9 +580,11 @@ const s = {
   listaConversas: { overflowY: 'auto', flex: 1 },
   itemConversa: {
     width: '100%',
-    border: 'none',
-    background: '#fff',
+    borderTop: 'none',
+    borderRight: 'none',
     borderBottom: '1px solid #F5F5F5',
+    borderLeft: 'none',
+    background: '#fff',
     padding: '12px 12px',
     display: 'flex',
     gap: 10,

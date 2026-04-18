@@ -44,9 +44,10 @@ export async function GET(request) {
   if (!autorizado(request)) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const dias = parseInt(searchParams.get('dias') || '7');
+  const dias = parseInt(searchParams.get('dias') || '180');
   const clinicaId = searchParams.get('clinica_id');
   const dentistaNome = searchParams.get('dentista_nome') || null;
+  const dataEspecifica = searchParams.get('data') || null; // YYYY-MM-DD ou DD/MM/YYYY
 
   // Buscar configuração de horários da clínica
   let horariosConfig = null;
@@ -89,11 +90,48 @@ export async function GET(request) {
   const hojeDate = new Date(hojeStr + 'T00:00:00');
   const minAtualBR = agoraBR.getUTCHours() * 60 + agoraBR.getUTCMinutes();
 
+  // Normalizar data específica para YYYY-MM-DD
+  let dataAlvo = null;
+  if (dataEspecifica) {
+    if (dataEspecifica.includes('/')) {
+      const [dd, mm, aaaa] = dataEspecifica.split('/');
+      dataAlvo = `${aaaa}-${mm}-${dd}`;
+    } else {
+      dataAlvo = dataEspecifica;
+    }
+  }
+
+  const totalDias = dataAlvo ? 0 : dias;
+
+  // Calcular intervalo de datas para buscar agendamentos em batch
+  const dataInicioISO = hojeStr;
+  const dataFimDate = new Date(hojeDate);
+  dataFimDate.setUTCDate(hojeDate.getUTCDate() + totalDias);
+  const dataFimISO = dataAlvo || dataFimDate.toISOString().split('T')[0];
+
+  let agendamentosQuery = supabaseAdmin
+    .from('agendamentos')
+    .select('data, hora, dentista_nome')
+    .gte('data', dataAlvo || dataInicioISO)
+    .lte('data', dataFimISO)
+    .in('status', ['confirmado', 'pendente']);
+  if (clinicaId) agendamentosQuery = agendamentosQuery.eq('clinica_id', clinicaId);
+  if (dentistaNome) agendamentosQuery = agendamentosQuery.eq('dentista_nome', dentistaNome);
+
+  const { data: todosAgendamentos } = await agendamentosQuery;
+  const ocupadosPorData = {};
+  (todosAgendamentos || []).forEach(a => {
+    if (!ocupadosPorData[a.data]) ocupadosPorData[a.data] = [];
+    ocupadosPorData[a.data].push(a.hora.substring(0, 5));
+  });
+
   const resultado = [];
 
-  for (let i = 0; i <= dias; i++) {
-    const data = new Date(hojeDate);
-    data.setUTCDate(hojeDate.getUTCDate() + i);
+  for (let i = 0; i <= totalDias; i++) {
+    const data = dataAlvo
+      ? new Date(dataAlvo + 'T00:00:00Z')
+      : new Date(hojeDate);
+    if (!dataAlvo) data.setUTCDate(hojeDate.getUTCDate() + i);
     const diaSemanaIdx = data.getUTCDay(); // 0=Dom, 6=Sab
 
     // Obter config do dia (horários de funcionamento da clínica)
@@ -134,26 +172,14 @@ export async function GET(request) {
       });
     }
 
-    // Para hoje (horário Brasília), filtrar slots já passados
-    if (i === 0) {
+    if (dataISO === hojeStr) {
       horariosBase = horariosBase.filter(h => {
         const [hh, mm] = h.split(':').map(Number);
         return (hh * 60 + mm) > minAtualBR;
       });
     }
 
-    // Buscar horários já ocupados
-    let query = supabaseAdmin
-      .from('agendamentos')
-      .select('hora')
-      .eq('data', dataISO)
-      .in('status', ['confirmado', 'pendente']);
-
-    if (clinicaId) query = query.eq('clinica_id', clinicaId);
-    if (dentistaNome) query = query.eq('dentista_nome', dentistaNome);
-
-    const { data: ocupados } = await query;
-    const horasOcupadas = (ocupados || []).map(a => a.hora.substring(0, 5));
+    const horasOcupadas = ocupadosPorData[dataISO] || [];
     const disponiveis = horariosBase.filter(h => !horasOcupadas.includes(h));
 
     if (disponiveis.length > 0) {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase-client';
+import { resolverNome, nomePareceCEmail } from '@/lib/resolver-nome';
 
 export default function Login() {
   const router = useRouter();
@@ -46,9 +47,12 @@ export default function Login() {
         .eq('id', data.user.id)
         .maybeSingle();
 
-      // Salvar no localStorage para uso em toda a aplicação
+      const nomeResolvido = (!userRole?.nome || nomePareceCEmail(userRole?.nome))
+        ? await resolverNome(data.user.email, supabase)
+        : userRole.nome;
+
       const role = userRole?.role || 'dentista';
-      const nome = userRole?.nome || data.user.email;
+      const nome = nomeResolvido;
       const clinicaId = userRole?.clinica_id || '';
       localStorage.setItem('dentclinic_logged_in', '1');
       localStorage.setItem('dentclinic_role', role);

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { getModulosPlano } from '@/lib/planos-modulos';
+import { resolverNome, nomePareceCEmail } from '@/lib/resolver-nome';
 
 const navItems = [
   {
@@ -101,7 +102,11 @@ export default function Sidebar() {
 
       if (userData) {
         setRole(userData.role);
-        setUserName(userData.nome || userEmail);
+
+        const nomeFinal = (!userData.nome || nomePareceCEmail(userData.nome))
+          ? await resolverNome(userEmail, supabase)
+          : userData.nome;
+        setUserName(nomeFinal);
 
         if (userData.role === 'super_admin') {
           setUserRole('Super Admin');
@@ -121,17 +126,24 @@ export default function Sidebar() {
           }
         }
       } else {
-        // Fallback: usar localStorage
-        const roleLocal = localStorage.getItem('dentclinic_role');
-        const nameLocal = localStorage.getItem('dentclinic_name');
-        const clinicaIdLocal = localStorage.getItem('clinica_id');
-        if (roleLocal) {
-          setRole(roleLocal);
-          if (roleLocal === 'super_admin') setUserRole('Super Admin');
-          else if (roleLocal === 'secretaria') setUserRole('Secretária');
-          else setUserRole('Dentista');
-        }
-        if (nameLocal) setUserName(nameLocal);
+        // Sem entrada em user_roles: email cadastrado só via tabela dentistas
+        const { data: dentistaData } = await supabase
+          .from('dentistas')
+          .select('nome, clinica_id')
+          .eq('email', userEmail)
+          .maybeSingle();
+
+        const roleLocal = localStorage.getItem('dentclinic_role') || 'dentista';
+        const localName = localStorage.getItem('dentclinic_name');
+        const nameLocal = dentistaData?.nome || (!nomePareceCEmail(localName) ? localName : null) || userEmail;
+        const clinicaIdLocal = dentistaData?.clinica_id || localStorage.getItem('clinica_id');
+
+        setRole(roleLocal);
+        if (roleLocal === 'super_admin') setUserRole('Super Admin');
+        else if (roleLocal === 'secretaria') setUserRole('Secretária');
+        else setUserRole('Dentista');
+
+        setUserName(nameLocal);
         if (clinicaIdLocal) carregarClinica(clinicaIdLocal);
       }
     } catch (error) {
@@ -224,7 +236,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav style={{ flex: 1 }}>
+      <nav style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {filteredNavItems.map((group) => (
           <div key={group.section}>
             <div style={styles.sectionLabel}>{group.section}</div>
@@ -407,7 +419,7 @@ function TargetIcon() {
 }
 
 const styles = {
-  sidebar: { width: 220, background: '#1A1A1A', display: 'flex', flexDirection: 'column', padding: '28px 0', flexShrink: 0, minHeight: '100vh' },
+  sidebar: { width: 220, background: '#1A1A1A', display: 'flex', flexDirection: 'column', padding: '28px 0', flexShrink: 0, height: '100vh', position: 'sticky', top: 0 },
   brand: { display: 'flex', alignItems: 'center', gap: 10, padding: '0 24px 28px' },
   brandIcon: { width: 32, height: 32, background: '#E8F4F0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   brandName: { fontFamily: "'DM Serif Display', serif", fontSize: 18, color: '#fff', letterSpacing: '-0.3px', display: 'block' },

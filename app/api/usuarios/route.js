@@ -90,7 +90,34 @@ export async function GET(request) {
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    return NextResponse.json(data || []);
+    const usuarios = data || [];
+
+    const semNome = usuarios.filter(u => !u.nome || u.nome.includes('@'));
+    if (semNome.length > 0) {
+      // Batch: buscar todos auth users e dentistas de uma vez
+      const [{ data: { users: authUsers } }, { data: dentistasList }] = await Promise.all([
+        supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }),
+        clinicaId
+          ? supabaseAdmin.from('dentistas').select('email, nome').eq('clinica_id', clinicaId)
+          : supabaseAdmin.from('dentistas').select('email, nome'),
+      ]);
+
+      const authEmailMap = {};
+      (authUsers || []).forEach(u => { authEmailMap[u.id] = u.email; });
+
+      const dentistasMap = {};
+      (dentistasList || []).forEach(d => { dentistasMap[d.email] = d.nome; });
+
+      for (const u of semNome) {
+        const emailRef = u.email?.trim() || authEmailMap[u.id] || '';
+        if (emailRef && dentistasMap[emailRef]) {
+          u.nome = dentistasMap[emailRef];
+          u.email = emailRef;
+        }
+      }
+    }
+
+    return NextResponse.json(usuarios);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

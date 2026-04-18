@@ -18,6 +18,7 @@ export default function DentistasSuperAdminPage() {
   const [busca, setBusca] = useState('');
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
+  const [confirmacao, setConfirmacao] = useState(null);
 
   const showFeedback = (type, message) => {
     setFeedback({ type, message });
@@ -129,26 +130,27 @@ export default function DentistasSuperAdminPage() {
     setModal('editar');
   };
 
-  const handleExcluir = async (id, tipo) => {
-    const msg = tipo === 'dentista' ? 'dentista' : 'secretaria';
-    if (!window.confirm(`Deseja realmente excluir este(a) ${msg}?`)) return;
-
-    try {
-      const tabela = tipo === 'dentista' ? 'dentistas' : 'user_roles';
-      const { error } = await supabase.from(tabela).delete().eq('id', id);
-      if (error) throw error;
-
-      if (tipo === 'dentista') {
-        setDentistas(dentistas.filter((d) => d.id !== id));
-      } else {
-        setSecretarias(secretarias.filter((s) => s.id !== id));
-      }
-
-      showFeedback('success', `${tipo === 'dentista' ? 'Dentista' : 'Secretaria'} excluido(a) com sucesso.`);
-    } catch (error) {
-      console.error('Erro ao excluir:', error);
-      showFeedback('error', `Erro ao excluir ${msg}.`);
-    }
+  const handleExcluir = (id, tipo) => {
+    const label = tipo === 'dentista' ? 'dentista' : 'secretária';
+    setConfirmacao({
+      mensagem: `Deseja realmente excluir este(a) ${label}? Esta ação não pode ser desfeita.`,
+      onConfirmar: async () => {
+        setConfirmacao(null);
+        try {
+          const tabela = tipo === 'dentista' ? 'dentistas' : 'user_roles';
+          const { error } = await supabase.from(tabela).delete().eq('id', id);
+          if (error) throw error;
+          if (tipo === 'dentista') {
+            setDentistas(dentistas.filter((d) => d.id !== id));
+          } else {
+            setSecretarias(secretarias.filter((s) => s.id !== id));
+          }
+          showFeedback('success', `${tipo === 'dentista' ? 'Dentista' : 'Secretária'} excluído(a) com sucesso.`);
+        } catch (error) {
+          showFeedback('error', `Erro ao excluir ${label}.`);
+        }
+      },
+    });
   };
 
   const handleSalvar = async () => {
@@ -211,8 +213,12 @@ export default function DentistasSuperAdminPage() {
       setModal(null);
       setSenhaTemp('');
     } catch (error) {
-      console.error('Erro ao salvar:', error);
-      showFeedback('error', 'Erro ao salvar usuario.');
+      const msg = error?.message || '';
+      if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('already exists')) {
+        showFeedback('error', 'Este e-mail já está cadastrado no sistema.');
+      } else {
+        showFeedback('error', 'Erro ao salvar. Verifique os dados e tente novamente.');
+      }
     }
   };
 
@@ -361,6 +367,27 @@ export default function DentistasSuperAdminPage() {
           </tbody>
         </table>
       </Card>
+
+      {confirmacao && (
+        <div style={s.modalOverlay} onClick={() => setConfirmacao(null)}>
+          <div style={{ ...s.modal, maxWidth: 420, padding: 32 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#1A1A1A', marginBottom: 10, fontFamily: "'DM Serif Display', serif" }}>
+                Confirmar exclusão
+              </div>
+              <p style={{ fontSize: 14, color: '#555', margin: 0, lineHeight: 1.6 }}>{confirmacao.mensagem}</p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 28 }}>
+              <button onClick={() => setConfirmacao(null)} style={{ padding: '9px 18px', borderRadius: 8, border: '1.5px solid #E0E0E0', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#555' }}>
+                Cancelar
+              </button>
+              <button onClick={confirmacao.onConfirmar} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: '#C74242', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal && (
         <div style={s.modalOverlay} onClick={handleFecharModal}>
