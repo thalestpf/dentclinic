@@ -97,13 +97,13 @@ components/               → Componentes reutilizáveis
 |---|---|---|
 | `/dashboard` | KPIs + próxima consulta + gráfico semanal | ✅ Consultas hoje, taxa de confirmação, consultas na semana, pacientes ativos, gráfico semana (Seg-Sex) — tudo via Supabase filtrado por `clinica_id` |
 | `/agenda` | Calendário Semana/Dia multi-dentista + bloqueios | ✅ CRUD completo via `useAgendamento.ts` + `/api/bloqueios` — **UI refinada**: paleta harmonizada, modais em gradiente escuro, chips filtro dentistas, botão Hoje, linha "agora", altura do bloco pela duração, KPI cards padrão Dashboard |
+| `/prontuario` | Odontograma + Anamnese + Plano + Evolução + Documentos | ✅ CRUD Supabase com filtro `clinica_id` em todas as queries — **UI refinada**: tabs sticky com ícones lucide, modais dark gradient, kebab menu, empty states, thumbnails de imagens, toast + modal de confirmação (sem `alert`/`confirm`), paleta harmonizada no odontograma, avatar com `iniciaisNome`. Odontograma persistido em memória da sessão (tabela futura) |
 
 ### 🟡 PARCIALMENTE PRONTO (Interface OK, dados mock)
 | Rota | Função | Status |
 |---|---|---|
 | `/financeiro` | Contas a pagar/receber | Interface pronta, dados estáticos |
 | `/estoque` | Controle de materiais | Interface pronta, sem CRUD |
-| `/prontuario` | Prontuários com odontograma | Interface completa, dados estáticos |
 | `/configuracoes` | Usuários, clínica, procedimentos | Parcial, abas prontas |
 
 ### 🟢 PRONTO (Super Admin)
@@ -125,6 +125,13 @@ components/               → Componentes reutilizáveis
 | `pacientes` | ✅ Supabase (`pacientes`) — buscados direto com `supabase-client` |
 | `clinicas` | ✅ Supabase (`clinicas`) — via `/api/clinica` (service_role) |
 | `usuarios` | ✅ Supabase (`usuarios`) — login via `/api/auth/login` |
+| `anamnese` | ✅ Supabase (`anamnese`) — filtrado por `paciente_id` + `clinica_id` |
+| `plano_tratamento` | ✅ Supabase (`plano_tratamento`) — itens do plano, flag `pago` |
+| `evolucoes` | ✅ Supabase (`evolucoes`) — histórico clínico com dentista responsável |
+| `documentos` | ✅ Supabase (`documentos`) + Storage bucket `prontuario-docs` (upload com compressão de imagem canvas 1600px/75%) |
+| `recebimentos` | ✅ Supabase (`recebimentos`) — histórico de pagamentos gerado pelo prontuário |
+| `procedimentos` | ✅ Supabase (`procedimentos`) — lista de procedimentos ativos por clínica |
+| Odontograma | ⏳ Memória da sessão (tabela `odontograma` planejada para persistência) |
 | `orcamentos` | ⏳ localStorage (`orcamentos`) |
 | `precos` | ⏳ localStorage (`precos`) |
 | `estoque` | ⏳ localStorage (sem CRUD) |
@@ -312,6 +319,26 @@ const s = {
 - **Ações rápidas:** 2x2 com ícones cinza uniformes (paleta reduzida)
 - **Grid inferior:** "Alertas de retorno" + "Estoque crítico" (2 cards placeholder com subtítulos explicativos, ícones neutros)
 
+### ✅ Prontuário (CRUD — Supabase, UI refinada)
+- **5 Abas:** Odontograma, Anamnese, Plano de tratamento, Evolução clínica, Documentos
+- **Busca de paciente:** input com ícone `<Search>` inline + dropdown com avatar colorido por nome
+- **Avatar:** `iniciaisNome(nome)` + `corAvatar(nome)` com hash estável na paleta `CORES_AVATAR`
+- **Tabs:** sticky no topo (top: 0, zIndex: 5) com ícones lucide (`Stethoscope`, `ClipboardList`, `FileSearch`, `Activity`, `FolderOpen`)
+- **PageHeader:** subtítulo mostra nome do paciente selecionado (ou "Ficha clínica do paciente" quando vazio)
+- **Odontograma:** SVG com 5 tipos de dente (incisor/canine/premolar/molar/wisdom), 10 status com paleta harmonizada (`#5FA883`, `#C08A3A`, `#3A5FA5`, `#C5585A`, etc.) — popover inline ao clicar no dente
+- **Anamnese:** 6 campos livres + histórico sistêmico (chips com `<Check>`/círculo vazio) + campos extras dinâmicos e condições customizadas
+- **Plano de tratamento:** itens com check, valor, status; botão primário `$ Receber` (quando feito) que abre modal de recebimento; kebab (⋮) para Editar/Excluir; totais (Total/Já realizado) em cards
+- **Recebimento:** insere em `recebimentos` + marca `pago=true` no item + lança em `lancamentos` (entrada) — tudo filtrado por `clinica_id`
+- **Evolução:** linha do tempo com data, procedimento, descrição, dentista; kebab para Editar/Excluir; campo dentista **readonly** (preenchido com `dentclinic_name`)
+- **Documentos:** upload com compressão de imagem (canvas 1600px/75%), thumbnails in-line clicáveis para imagens, ícone `<FileText>` para PDFs/docs; Badge com tipo; botões Baixar/Excluir
+- **Feedback:** toast (CheckCircle2/XCircle lucide) em vez de `alert()`; modal de confirmação (AlertTriangle em badge coral) em vez de `confirm()`
+- **Modais unificados:** componente `<ModalShell>` com header em gradiente `linear-gradient(135deg, #1C1C1E, #2C2C2E)`, close `<X>` lucide em badge translúcido, footer com borda superior
+- **Empty states:** componente `<EmptyState>` com ícone lucide em círculo pastel 60x60 + CTA preto
+- **Shimmer:** skeleton animado em cada aba durante `carregandoPaciente`
+- **Supabase:** todas as 6 queries (`pacientes`, `anamnese`, `plano_tratamento`, `evolucoes`, `documentos`, `procedimentos`) filtradas por `clinica_id` quando disponível
+- **Print:** botão "Imprimir" chama `window.print()` com CSS `@media print` ocultando `.no-print` e botões
+- **Removido:** código morto de `supabase.auth.getSession()` que nunca rodava (sistema usa `/api/auth/login` + localStorage)
+
 ### ✅ Pacientes (CRUD — Supabase, UI refinada)
 - **CREATE:** "Novo Paciente" → modal com seções (Dados pessoais / Contato / Atendimento), 2 colunas
 - **READ:** Tabela com hover por linha, avatar colorido `{bg, text}` harmônico, CPF embaixo do nome
@@ -467,6 +494,7 @@ GOOGLE_GENAI_API_KEY=
 - [x] **Super Admin - Integrações** — WhatsApp + n8n + templates + automações
 - [x] **Pacientes** — CRUD no Supabase + UI refinada (kebab, chips, modal em seções)
 - [x] **Dashboard** — Dados reais do Supabase (KPIs, próxima consulta, gráfico semanal Seg-Sex, pacientes ativos)
+- [x] **Prontuário** — 5 abas (Odontograma, Anamnese, Plano, Evolução, Documentos) no Supabase com filtro `clinica_id`, UI refinada (tabs sticky com ícones, modais dark, kebab, empty states, thumbnails, toast + confirm modal)
 - [x] **API Routes n8n** — agendamento, dentistas, clínica, disponibilidade, sessão
 
 ### 🔴 CRÍTICO
@@ -476,7 +504,7 @@ GOOGLE_GENAI_API_KEY=
 ### 🟡 IMPORTANTE
 - [ ] Conectar Dashboard a Faturamento quando módulo financeiro existir
 - [ ] CRUD completo para Estoque (entrada/saída de materiais)
-- [ ] Sincronizar Prontuário com Pacientes
+- [ ] Criar tabela `odontograma` e persistir estado dos dentes por paciente (hoje só sessão)
 - [ ] Relatórios dinâmicos (Financeiro, Procedimentos por dentista)
 - [ ] Aplicar padrão visual refinado (kebab, chips, shimmer) em Orçamento, Preços
 
@@ -506,7 +534,7 @@ GOOGLE_GENAI_API_KEY=
   - Cores padronizadas: mint (`#A8D5C2`), dark (`#1A1A1A`), muted (`#888`)
   - Background de página: sempre `#F8F8F8` (nunca `#F5F6FA` ou outros)
 
-- **Padrões de Design refinados (aplicados em Pacientes, Dashboard e Agenda)** — usar como referência ao revisar outras telas:
+- **Padrões de Design refinados (aplicados em Pacientes, Dashboard, Agenda e Prontuário)** — usar como referência ao revisar outras telas:
   - **Tabelas:** sem zebra; hover por linha em `#FAFAFA` via `useState(hoverRowId)`; header `<th>` fundo `#fff` (evita colisão com card arredondado); `overflow: visible` no card da tabela para permitir dropdowns
   - **Ações em tabela:** botão primário visível (ex: "Prontuário") + menu kebab (⋮) para secundárias (Editar, Excluir). Kebab abre dropdown `position:absolute` com overlay invisível `fixed inset:0 zIndex:10` para fechar ao clicar fora
   - **Filtros:** chips toggle em container `background:#F5F5F5 padding:3 borderRadius:8`, com contador em pill — em vez de `<select>`

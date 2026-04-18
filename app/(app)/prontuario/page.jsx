@@ -4,7 +4,40 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardTitle, PageHeader, Button, Badge } from '../../../components/UI';
 import { supabase } from '@/lib/supabase-client';
+import {
+  Search, X, Plus, Check, Image as ImageIcon, FileText, DollarSign, CheckCircle2, XCircle,
+  MoreVertical, Edit3, Trash2, Printer, Download, Upload, UserPlus, ClipboardList,
+  Activity, FolderOpen, FileSearch, Stethoscope, AlertTriangle,
+} from 'lucide-react';
 
+// ─────────────────────────────────────────────────────────────
+// Paleta harmonizada do sistema
+// ─────────────────────────────────────────────────────────────
+const CORES_AVATAR = [
+  { bg: '#EAF5EF', text: '#3E7D63' },
+  { bg: '#E6EEF9', text: '#3A5FA5' },
+  { bg: '#FBEFDC', text: '#A57A3A' },
+  { bg: '#EEE3F9', text: '#6B3FA5' },
+  { bg: '#F9E3DC', text: '#A55A3A' },
+  { bg: '#E3F5EC', text: '#2E7D5B' },
+];
+
+function iniciaisNome(nome) {
+  if (!nome) return '?';
+  const partes = nome.trim().split(/\s+/);
+  if (partes.length === 1) return partes[0].charAt(0).toUpperCase();
+  return (partes[0].charAt(0) + partes[partes.length - 1].charAt(0)).toUpperCase();
+}
+
+function corAvatar(nome) {
+  if (!nome) return CORES_AVATAR[0];
+  const hash = [...nome].reduce((a, c) => a + c.charCodeAt(0), 0);
+  return CORES_AVATAR[hash % CORES_AVATAR.length];
+}
+
+// ─────────────────────────────────────────────────────────────
+// Odontograma — cores harmonizadas ao sistema
+// ─────────────────────────────────────────────────────────────
 const initialTeeth = [
   {n:'18',s:'ok'},{n:'17',s:'ok'},{n:'16',s:'restored'},{n:'15',s:'ok'},{n:'14',s:'cavity'},{n:'13',s:'ok'},{n:'12',s:'ok'},{n:'11',s:'cavity'},
   {n:'21',s:'ok'},{n:'22',s:'ok'},{n:'23',s:'ok'},{n:'24',s:'ok'},{n:'25',s:'ok'},{n:'26',s:'restored'},{n:'27',s:'ok'},{n:'28',s:'missing'},
@@ -12,28 +45,29 @@ const initialTeeth = [
   {n:'41',s:'ok'},{n:'42',s:'ok'},{n:'43',s:'ok'},{n:'44',s:'ok'},{n:'45',s:'cavity'},{n:'46',s:'ok'},{n:'47',s:'ok'},{n:'48',s:'missing'},
 ];
 
+// Paleta refinada para status de dente — tons pastel + stroke mais forte
 const toothFill = {
-  ok:'#E8F5E9', cavity:'#FFF3CD', restored:'#D1ECF1', missing:'#F8D7DA',
-  fracture:'#FFE8D6', prosthesis:'#EDE7F6', crown:'#E3F2FD', partial:'#E8EAF6',
-  implant:'#E0F7FA', tartar:'#F5F5DC',
+  ok:'#EAF5EF', cavity:'#FBEFDC', restored:'#E6EEF9', missing:'#F5DCDC',
+  fracture:'#F9E3DC', prosthesis:'#EEE3F9', crown:'#DDE9F7', partial:'#E3E6F5',
+  implant:'#DCEEF0', tartar:'#F0EADC',
 };
 const toothStroke = {
-  ok:'#A8D5C2', cavity:'#F39C12', restored:'#17A2B8', missing:'#E74C3C',
-  fracture:'#E67E22', prosthesis:'#7B1FA2', crown:'#1565C0', partial:'#3949AB',
-  implant:'#00838F', tartar:'#8D6E63',
+  ok:'#5FA883', cavity:'#C08A3A', restored:'#3A5FA5', missing:'#C5585A',
+  fracture:'#A55A3A', prosthesis:'#6B3FA5', crown:'#2F5A99', partial:'#4C5A8F',
+  implant:'#2E7276', tartar:'#8A7A4E',
 };
 
 const statusOptions = [
-  { key: 'ok', label: 'Saudável', color: '#A8D5C2' },
-  { key: 'cavity', label: 'Cárie', color: '#F39C12' },
-  { key: 'restored', label: 'Restaurado', color: '#17A2B8' },
-  { key: 'missing', label: 'Ausente', color: '#E74C3C' },
-  { key: 'fracture', label: 'Fratura', color: '#E67E22' },
-  { key: 'prosthesis', label: 'Prótese', color: '#7B1FA2' },
-  { key: 'crown', label: 'Coroa total', color: '#1565C0' },
-  { key: 'partial', label: 'Coroa parcial', color: '#3949AB' },
-  { key: 'implant', label: 'Implante', color: '#00838F' },
-  { key: 'tartar', label: 'Tártaro', color: '#8D6E63' },
+  { key: 'ok', label: 'Saudável', color: '#5FA883' },
+  { key: 'cavity', label: 'Cárie', color: '#C08A3A' },
+  { key: 'restored', label: 'Restaurado', color: '#3A5FA5' },
+  { key: 'missing', label: 'Ausente', color: '#C5585A' },
+  { key: 'fracture', label: 'Fratura', color: '#A55A3A' },
+  { key: 'prosthesis', label: 'Prótese', color: '#6B3FA5' },
+  { key: 'crown', label: 'Coroa total', color: '#2F5A99' },
+  { key: 'partial', label: 'Coroa parcial', color: '#4C5A8F' },
+  { key: 'implant', label: 'Implante', color: '#2E7276' },
+  { key: 'tartar', label: 'Tártaro', color: '#8A7A4E' },
 ];
 
 const toothType = (n) => {
@@ -88,8 +122,8 @@ const TEETH_SVG = {
 
 function ToothSVG({ tooth, selected, onClick }) {
   const type = toothType(tooth.n);
-  const fill = toothFill[tooth.s] || '#E8F5E9';
-  const stroke = toothStroke[tooth.s] || '#A8D5C2';
+  const fill = toothFill[tooth.s] || '#EAF5EF';
+  const stroke = toothStroke[tooth.s] || '#5FA883';
   const sw = selected ? 2.5 : 1.5;
   const opacity = tooth.s === 'missing' ? 0.4 : 1;
   const renderFn = TEETH_SVG[type];
@@ -153,18 +187,46 @@ function OdontogramaSVG({ teeth, selectedTooth, onToothClick }) {
   );
 }
 
-function ToothModal({ tooth, onSelect, onClose }) {
+// ─────────────────────────────────────────────────────────────
+// Modal unificado — header escuro + close lucide
+// ─────────────────────────────────────────────────────────────
+function ModalShell({ titulo, onClose, children, maxWidth = 460 }) {
+  return (
+    <div style={m.overlay} onClick={onClose}>
+      <div style={{ ...m.modal, maxWidth }} onClick={e => e.stopPropagation()}>
+        <div style={m.headerDark}>
+          <span style={m.titleLight}>{titulo}</span>
+          <button style={m.closeBtnDark} onClick={onClose} aria-label="Fechar">
+            <X size={16} strokeWidth={2.2} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Popover inline para status do dente (substitui modal)
+// ─────────────────────────────────────────────────────────────
+function ToothStatusPopover({ tooth, onSelect, onClose }) {
   if (!tooth) return null;
   return (
     <div style={m.overlay} onClick={onClose}>
-      <div style={m.modal} onClick={e => e.stopPropagation()}>
-        <div style={m.header}>
-          <span style={m.title}>Dente {tooth.n}</span>
-          <button style={m.closeBtn} onClick={onClose}>✕</button>
+      <div style={{ ...m.modal, maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+        <div style={m.headerDark}>
+          <span style={m.titleLight}>Dente {tooth.n}</span>
+          <button style={m.closeBtnDark} onClick={onClose} aria-label="Fechar">
+            <X size={16} strokeWidth={2.2} />
+          </button>
         </div>
-        <div style={m.grid}>
+        <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           {statusOptions.map(opt => (
-            <div key={opt.key} style={{ ...m.option, ...(tooth.s === opt.key ? m.optionActive : {}) }} onClick={() => onSelect(tooth.n, opt.key)}>
+            <div
+              key={opt.key}
+              style={{ ...m.option, ...(tooth.s === opt.key ? m.optionActive : {}) }}
+              onClick={() => onSelect(tooth.n, opt.key)}
+            >
               <div style={{ width: 10, height: 10, borderRadius: 3, background: opt.color, flexShrink: 0 }} />
               <span style={{ fontSize: 12 }}>{opt.label}</span>
             </div>
@@ -175,29 +237,29 @@ function ToothModal({ tooth, onSelect, onClose }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Estilos do modal
+// ─────────────────────────────────────────────────────────────
 const m = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 320, overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.18)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', borderBottom: '1px solid #F5F5F5' },
-  title: { fontFamily: "'DM Serif Display', serif", fontSize: 17 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 14, cursor: 'pointer', color: '#AAA' },
-  close: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#AAA', lineHeight: 1 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: 14 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 460, overflow: 'hidden', boxShadow: '0 16px 48px rgba(0,0,0,0.18)' },
+  headerDark: { background: 'linear-gradient(135deg, #1C1C1E, #2C2C2E)', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  titleLight: { fontFamily: "'DM Serif Display', serif", fontSize: 17, color: '#fff', letterSpacing: '-0.3px' },
+  closeBtnDark: { width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' },
   option: { display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 8, border: '1.5px solid #F0F0F0', cursor: 'pointer', background: '#FAFAFA' },
   optionActive: { border: '1.5px solid #1A1A1A', background: '#F5F5F5', fontWeight: 500 },
   label: { display: 'block', fontSize: 11, fontWeight: 500, color: '#888', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' },
   input: { width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, boxSizing: 'border-box', fontFamily: "'DM Sans', sans-serif" },
+  sectionTitle: { fontSize: 11, fontWeight: 500, color: '#AAA', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10, paddingBottom: 8, borderBottom: '1px dashed #F0F0F0' },
 };
 
-const plan = [
-  { name: 'Limpeza profissional', price: 'R$150', done: true },
-  { name: 'Restauração dente 36', price: 'R$280', done: true },
-  { name: 'Canal dente 11', price: 'R$900', done: false },
-  { name: 'Clareamento', price: 'R$600', done: false },
+const tabs = [
+  { key: 'Odontograma', icon: Stethoscope },
+  { key: 'Anamnese', icon: ClipboardList },
+  { key: 'Plano de tratamento', icon: FileSearch },
+  { key: 'Evolução clínica', icon: Activity },
+  { key: 'Documentos', icon: FolderOpen },
 ];
-
-
-const tabs = ['Odontograma', 'Anamnese', 'Plano de tratamento', 'Evolução clínica', 'Documentos'];
 
 export default function Prontuario() {
   const router = useRouter();
@@ -209,6 +271,13 @@ export default function Prontuario() {
   const [pacienteSelecionado, setPacienteSelecionado] = useState(null);
   const [buscaPaciente, setBuscaPaciente] = useState('');
   const [buscaFocada, setBuscaFocada] = useState(false);
+  const [carregandoPaciente, setCarregandoPaciente] = useState(false);
+
+  const [clinicaId, setClinicaId] = useState(null);
+
+  // Toast + confirm
+  const [toast, setToast] = useState(null);
+  const [confirmacao, setConfirmacao] = useState(null); // { msg, onConfirm }
 
   // Anamnese
   const anamneseVazia = { queixa_principal: '', historico_medico: '', alergias: '', medicamentos: '', historico_odontologico: '', habitos: '', diabetes: false, hipertensao: false, cardiopatia: false, coagulopatia: false, osteoporose: false, hiv_aids: false, hepatite: false, gestante: false, fumante: false, campos_extras: [] };
@@ -228,6 +297,7 @@ export default function Prontuario() {
   const [modalRecebimento, setModalRecebimento] = useState(null);
   const [formRecebimento, setFormRecebimento] = useState({ forma_pagamento: 'PIX', data_recebimento: '', observacoes: '' });
   const [salvandoRecebimento, setSalvandoRecebimento] = useState(false);
+  const [menuPlanoId, setMenuPlanoId] = useState(null);
 
   // Evolução clínica
   const [evolucoes, setEvolucoes] = useState([]);
@@ -236,16 +306,303 @@ export default function Prontuario() {
   const [formEvolucao, setFormEvolucao] = useState({ procedimento: '', descricao: '', dentista: '' });
   const [salvandoEvolucao, setSalvandoEvolucao] = useState(false);
   const [nomeDentistaLogado, setNomeDentistaLogado] = useState('');
+  const [menuEvolucaoId, setMenuEvolucaoId] = useState(null);
 
   // Documentos
   const [documentos, setDocumentos] = useState([]);
   const [uploadando, setUploadando] = useState(false);
-  const [modalDoc, setModalDoc] = useState(null); // { arquivo, tipo, tamanho }
+  const [modalDoc, setModalDoc] = useState(null);
   const [formDoc, setFormDoc] = useState({ nome: '', descricao: '' });
+  const [thumbnails, setThumbnails] = useState({}); // { docId: signedUrl }
 
+  // ─────────────────────────────────────────────────────────
+  // Helpers de feedback
+  // ─────────────────────────────────────────────────────────
+  const mostrarToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const confirmar = (msg) => new Promise((resolve) => {
+    setConfirmacao({
+      msg,
+      onConfirm: () => { setConfirmacao(null); resolve(true); },
+      onCancel: () => { setConfirmacao(null); resolve(false); },
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // Carregamento inicial
+  // ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setNomeDentistaLogado(localStorage.getItem('dentclinic_name') || '');
+    setClinicaId(localStorage.getItem('dentclinic_clinica_id') || null);
+  }, []);
+
+  useEffect(() => {
+    if (clinicaId === null) return; // aguarda leitura do localStorage
+    let q = supabase.from('procedimentos').select('id, nome, preco').eq('status', 'ativo').order('nome');
+    if (clinicaId) q = q.eq('clinica_id', clinicaId);
+    q.then(({ data }) => setProcedimentosCadastrados(data || []));
+  }, [clinicaId]);
+
+  useEffect(() => {
+    if (clinicaId === null) return;
+    let q = supabase.from('pacientes').select('*').order('nome');
+    if (clinicaId) q = q.eq('clinica_id', clinicaId);
+    q.then(({ data }) => {
+      if (!data) return;
+      setPacientes(data);
+
+      const pacienteId = searchParams.get('paciente') || localStorage.getItem('prontuario_paciente_id');
+      if (!pacienteId) return;
+      const paciente = data.find(p => String(p.id) === String(pacienteId));
+      if (paciente) selecionarPaciente(paciente, { replaceUrl: false });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clinicaId, searchParams]);
+
+  const selecionarPaciente = async (p, { replaceUrl = true } = {}) => {
+    setPacienteSelecionado(p);
+    setBuscaPaciente('');
+    setAnamnese(null);
+    setFormAnamnese(anamneseVazia);
+    setEditandoAnamnese(false);
+    setPlanoItens([]);
+    setEvolucoes([]);
+    setDocumentos([]);
+    setThumbnails({});
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('prontuario_paciente_id', p.id);
+      localStorage.setItem('prontuario_paciente_nome', p.nome || '');
+    }
+    if (replaceUrl) router.replace(`/prontuario?paciente=${p.id}`);
+
+    setCarregandoPaciente(true);
+    await Promise.all([
+      carregarAnamnese(p.id),
+      carregarPlano(p.id),
+      carregarEvolucoes(p.id),
+      carregarDocumentos(p.id),
+    ]);
+    setCarregandoPaciente(false);
+  };
+
+  const limparPaciente = () => {
+    setPacienteSelecionado(null);
+    setActiveTab('Odontograma');
+    setAnamnese(null);
+    setFormAnamnese(anamneseVazia);
+    setEditandoAnamnese(false);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('prontuario_paciente_id');
+      localStorage.removeItem('prontuario_paciente_nome');
+    }
+    router.replace('/prontuario');
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // Anamnese
+  // ─────────────────────────────────────────────────────────
+  const carregarAnamnese = async (pacienteId) => {
+    let q = supabase.from('anamnese').select('*').eq('paciente_id', pacienteId);
+    if (clinicaId) q = q.eq('clinica_id', clinicaId);
+    const { data } = await q.maybeSingle();
+    if (data) { setAnamnese(data); setFormAnamnese(data); }
+    else { setAnamnese(null); setFormAnamnese(anamneseVazia); }
+  };
+
+  const handleSalvarAnamnese = async () => {
+    if (!pacienteSelecionado) return;
+    setSalvandoAnamnese(true);
+    const dados = { ...formAnamnese, paciente_id: pacienteSelecionado.id, atualizado_em: new Date().toISOString() };
+    if (clinicaId) dados.clinica_id = clinicaId;
+    let error;
+    if (anamnese?.id) {
+      ({ error } = await supabase.from('anamnese').update(dados).eq('id', anamnese.id));
+    } else {
+      ({ error } = await supabase.from('anamnese').insert([dados]));
+    }
+    if (error) {
+      mostrarToast('Erro ao salvar: ' + error.message, 'error');
+    } else {
+      await carregarAnamnese(pacienteSelecionado.id);
+      setEditandoAnamnese(false);
+      mostrarToast('Anamnese salva com sucesso');
+    }
+    setSalvandoAnamnese(false);
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // Plano de tratamento
+  // ─────────────────────────────────────────────────────────
+  const carregarPlano = async (pacienteId) => {
+    let q = supabase.from('plano_tratamento').select('*').eq('paciente_id', pacienteId).order('criado_em');
+    if (clinicaId) q = q.eq('clinica_id', clinicaId);
+    const { data } = await q;
+    setPlanoItens(data || []);
+  };
+
+  const handleSalvarPlano = async () => {
+    if (!formPlano.procedimento) { mostrarToast('Informe o procedimento', 'error'); return; }
+    setSalvandoPlano(true);
+    const dados = {
+      procedimento: formPlano.procedimento,
+      valor: parseFloat(formPlano.valor) || 0,
+      status: formPlano.status,
+      paciente_id: pacienteSelecionado.id,
+    };
+    if (clinicaId) dados.clinica_id = clinicaId;
+    let error;
+    if (editPlanoId) {
+      ({ error } = await supabase.from('plano_tratamento').update(dados).eq('id', editPlanoId));
+    } else {
+      ({ error } = await supabase.from('plano_tratamento').insert([dados]));
+    }
+    if (error) {
+      mostrarToast('Erro: ' + error.message, 'error');
+    } else {
+      await carregarPlano(pacienteSelecionado.id);
+      setModalPlano(false);
+      mostrarToast(editPlanoId ? 'Item atualizado' : 'Item adicionado ao plano');
+    }
+    setSalvandoPlano(false);
+  };
+
+  const handleToggleStatus = async (item) => {
+    const novoStatus = item.status === 'feito' ? 'pendente' : 'feito';
+    await supabase.from('plano_tratamento').update({ status: novoStatus }).eq('id', item.id);
+    setPlanoItens(planoItens.map(p => p.id === item.id ? { ...p, status: novoStatus } : p));
+  };
+
+  const handleExcluirPlano = async (id) => {
+    const ok = await confirmar('Excluir este item do plano?');
+    if (!ok) return;
+    await supabase.from('plano_tratamento').delete().eq('id', id);
+    setPlanoItens(planoItens.filter(p => p.id !== id));
+    mostrarToast('Item excluído');
+  };
+
+  const abrirModalRecebimento = (item) => {
+    const hoje = new Date().toISOString().split('T')[0];
+    setFormRecebimento({ forma_pagamento: 'PIX', data_recebimento: hoje, observacoes: '' });
+    setModalRecebimento(item);
+  };
+
+  const handleRegistrarRecebimento = async () => {
+    if (!modalRecebimento || !pacienteSelecionado) return;
+    setSalvandoRecebimento(true);
+    const valor = Number(modalRecebimento.valor);
+
+    const recebimento = {
+      paciente_id: pacienteSelecionado.id,
+      plano_item_id: modalRecebimento.id,
+      procedimento: modalRecebimento.procedimento,
+      valor,
+      forma_pagamento: formRecebimento.forma_pagamento,
+      data_recebimento: formRecebimento.data_recebimento,
+      observacoes: formRecebimento.observacoes || null,
+    };
+    if (clinicaId) recebimento.clinica_id = clinicaId;
+
+    const { error } = await supabase.from('recebimentos').insert(recebimento);
+    if (error) { setSalvandoRecebimento(false); mostrarToast('Erro ao registrar: ' + error.message, 'error'); return; }
+
+    await supabase.from('plano_tratamento').update({ pago: true }).eq('id', modalRecebimento.id);
+    setPlanoItens(prev => prev.map(p => p.id === modalRecebimento.id ? { ...p, pago: true } : p));
+
+    const lancamento = {
+      tipo: 'entrada',
+      descricao: `${modalRecebimento.procedimento} — ${pacienteSelecionado.nome}`,
+      categoria: 'Consulta',
+      valor,
+      status: 'pago',
+      data: formRecebimento.data_recebimento,
+    };
+    if (clinicaId) lancamento.clinica_id = clinicaId;
+    await supabase.from('lancamentos').insert(lancamento);
+
+    setSalvandoRecebimento(false);
+    setModalRecebimento(null);
+    mostrarToast('Recebimento registrado');
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // Evolução clínica
+  // ─────────────────────────────────────────────────────────
+  const carregarEvolucoes = async (pacienteId) => {
+    let q = supabase.from('evolucoes').select('*').eq('paciente_id', pacienteId).order('criado_em', { ascending: false });
+    if (clinicaId) q = q.eq('clinica_id', clinicaId);
+    const { data } = await q;
+    setEvolucoes(data || []);
+  };
+
+  const abrirModalEvolucao = (ev = null) => {
+    if (ev) {
+      setEditEvolucaoId(ev.id);
+      setFormEvolucao({ procedimento: ev.procedimento || '', descricao: ev.descricao || '', dentista: ev.dentista || '' });
+    } else {
+      setEditEvolucaoId(null);
+      setFormEvolucao({ procedimento: '', descricao: '', dentista: nomeDentistaLogado });
+    }
+    setModalEvolucao(true);
+  };
+
+  const handleSalvarEvolucao = async () => {
+    if (!formEvolucao.procedimento || !formEvolucao.descricao) { mostrarToast('Preencha procedimento e descrição', 'error'); return; }
+    setSalvandoEvolucao(true);
+    const dados = {
+      procedimento: formEvolucao.procedimento,
+      descricao: formEvolucao.descricao,
+      dentista: formEvolucao.dentista || nomeDentistaLogado,
+      paciente_id: pacienteSelecionado.id,
+    };
+    if (clinicaId) dados.clinica_id = clinicaId;
+    let error;
+    if (editEvolucaoId) {
+      ({ error } = await supabase.from('evolucoes').update(dados).eq('id', editEvolucaoId));
+    } else {
+      ({ error } = await supabase.from('evolucoes').insert([dados]));
+    }
+    if (error) {
+      mostrarToast('Erro: ' + error.message, 'error');
+    } else {
+      await carregarEvolucoes(pacienteSelecionado.id);
+      setModalEvolucao(false);
+      mostrarToast(editEvolucaoId ? 'Evolução atualizada' : 'Evolução registrada');
+    }
+    setSalvandoEvolucao(false);
+  };
+
+  const handleExcluirEvolucao = async (id) => {
+    const ok = await confirmar('Excluir esta evolução?');
+    if (!ok) return;
+    await supabase.from('evolucoes').delete().eq('id', id);
+    setEvolucoes(evolucoes.filter(e => e.id !== id));
+    mostrarToast('Evolução excluída');
+  };
+
+  // ─────────────────────────────────────────────────────────
+  // Documentos
+  // ─────────────────────────────────────────────────────────
   const carregarDocumentos = async (pacienteId) => {
-    const { data } = await supabase.from('documentos').select('*').eq('paciente_id', pacienteId).order('criado_em', { ascending: false });
-    setDocumentos(data || []);
+    let q = supabase.from('documentos').select('*').eq('paciente_id', pacienteId).order('criado_em', { ascending: false });
+    if (clinicaId) q = q.eq('clinica_id', clinicaId);
+    const { data } = await q;
+    const docs = data || [];
+    setDocumentos(docs);
+
+    // Carregar thumbnails das imagens
+    const imagens = docs.filter(d => d.tipo === 'Imagem');
+    const thumbs = {};
+    for (const doc of imagens) {
+      const { data: url } = await supabase.storage
+        .from('prontuario-docs')
+        .createSignedUrl(doc.storage_path, 3600);
+      if (url?.signedUrl) thumbs[doc.id] = url.signedUrl;
+    }
+    setThumbnails(thumbs);
   };
 
   const comprimirImagem = (arquivo, qualidade = 0.75, maxWidth = 1600) =>
@@ -291,18 +648,21 @@ export default function Prontuario() {
       const ext = isImagem ? 'jpg' : arquivo.name.split('.').pop();
       const path = `${pacienteSelecionado.id}/${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('prontuario-docs').upload(path, arquivoFinal);
-      if (uploadError) { alert('Erro ao enviar arquivo: ' + uploadError.message); return; }
+      if (uploadError) { mostrarToast('Erro ao enviar: ' + uploadError.message, 'error'); return; }
       const tamanho = formatarTamanho(arquivoFinal.size);
-      await supabase.from('documentos').insert({
+      const dados = {
         paciente_id: pacienteSelecionado.id,
         nome: formDoc.nome || arquivo.name,
         descricao: formDoc.descricao || null,
         tipo,
         tamanho,
         storage_path: path,
-      });
+      };
+      if (clinicaId) dados.clinica_id = clinicaId;
+      await supabase.from('documentos').insert(dados);
       await carregarDocumentos(pacienteSelecionado.id);
       setModalDoc(null);
+      mostrarToast('Documento enviado');
     } finally {
       setUploadando(false);
     }
@@ -311,196 +671,29 @@ export default function Prontuario() {
   const handleBaixarDocumento = async (doc) => {
     const { data } = await supabase.storage.from('prontuario-docs').createSignedUrl(doc.storage_path, 60);
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
-    else alert('Erro ao gerar link de download');
+    else mostrarToast('Erro ao gerar link de download', 'error');
   };
 
   const handleExcluirDocumento = async (doc) => {
-    if (!confirm(`Excluir "${doc.nome}"?`)) return;
+    const ok = await confirmar(`Excluir "${doc.nome}"?`);
+    if (!ok) return;
     await supabase.storage.from('prontuario-docs').remove([doc.storage_path]);
     await supabase.from('documentos').delete().eq('id', doc.id);
     setDocumentos(prev => prev.filter(d => d.id !== doc.id));
+    mostrarToast('Documento excluído');
   };
 
-  useEffect(() => {
-    const carregarDentista = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: userData } = await supabase.from('user_roles').select('nome').eq('id', session.user.id).maybeSingle();
-          if (userData?.nome) {
-            setNomeDentistaLogado(userData.nome);
-          } else {
-            setNomeDentistaLogado(session.user.email || localStorage.getItem('dentclinic_name') || '');
-          }
-        } else {
-          setNomeDentistaLogado(localStorage.getItem('dentclinic_name') || '');
-        }
-      } catch {
-        setNomeDentistaLogado(localStorage.getItem('dentclinic_name') || '');
-      }
-    };
-    carregarDentista();
-    supabase.from('procedimentos').select('id, nome, preco').eq('status', 'ativo').order('nome')
-      .then(({ data }) => setProcedimentosCadastrados(data || []));
-  }, []);
-
-  useEffect(() => {
-    supabase.from('pacientes').select('*').order('nome').then(({ data }) => {
-      if (!data) return;
-      setPacientes(data);
-
-      const pacienteId = searchParams.get('paciente') || localStorage.getItem('prontuario_paciente_id');
-      if (!pacienteId) return;
-      const paciente = data.find(p => String(p.id) === String(pacienteId));
-      if (paciente) {
-        setPacienteSelecionado(paciente);
-        localStorage.setItem('prontuario_paciente_id', paciente.id);
-        localStorage.setItem('prontuario_paciente_nome', paciente.nome || '');
-        carregarAnamnese(paciente.id);
-        carregarPlano(paciente.id);
-        carregarEvolucoes(paciente.id);
-        carregarDocumentos(paciente.id);
-      }
-    });
-  }, [searchParams]);
-
-  const carregarAnamnese = async (pacienteId) => {
-    const { data } = await supabase.from('anamnese').select('*').eq('paciente_id', pacienteId).single();
-    if (data) { setAnamnese(data); setFormAnamnese(data); }
-    else { setAnamnese(null); setFormAnamnese(anamneseVazia); }
-  };
-
-  const handleSalvarAnamnese = async () => {
-    if (!pacienteSelecionado) return;
-    setSalvandoAnamnese(true);
-    const dados = { ...formAnamnese, paciente_id: pacienteSelecionado.id, atualizado_em: new Date().toISOString() };
-    let error;
-    if (anamnese?.id) {
-      ({ error } = await supabase.from('anamnese').update(dados).eq('id', anamnese.id));
-    } else {
-      ({ error } = await supabase.from('anamnese').insert([dados]));
-    }
-    if (error) { alert('Erro ao salvar: ' + error.message); }
-    else { await carregarAnamnese(pacienteSelecionado.id); setEditandoAnamnese(false); }
-    setSalvandoAnamnese(false);
-  };
-
-  const carregarPlano = async (pacienteId) => {
-    const { data } = await supabase.from('plano_tratamento').select('*').eq('paciente_id', pacienteId).order('criado_em');
-    setPlanoItens(data || []);
-  };
-
-  const handleSalvarPlano = async () => {
-    if (!formPlano.procedimento) { alert('Informe o procedimento'); return; }
-    setSalvandoPlano(true);
-    const dados = { procedimento: formPlano.procedimento, valor: parseFloat(formPlano.valor) || 0, status: formPlano.status, paciente_id: pacienteSelecionado.id };
-    let error;
-    if (editPlanoId) {
-      ({ error } = await supabase.from('plano_tratamento').update(dados).eq('id', editPlanoId));
-    } else {
-      ({ error } = await supabase.from('plano_tratamento').insert([dados]));
-    }
-    if (error) { alert('Erro: ' + error.message); }
-    else { await carregarPlano(pacienteSelecionado.id); setModalPlano(false); }
-    setSalvandoPlano(false);
-  };
-
-  const handleToggleStatus = async (item) => {
-    const novoStatus = item.status === 'feito' ? 'pendente' : 'feito';
-    await supabase.from('plano_tratamento').update({ status: novoStatus }).eq('id', item.id);
-    setPlanoItens(planoItens.map(p => p.id === item.id ? { ...p, status: novoStatus } : p));
-  };
-
-  const handleExcluirPlano = async (id) => {
-    if (!confirm('Excluir este item do plano?')) return;
-    await supabase.from('plano_tratamento').delete().eq('id', id);
-    setPlanoItens(planoItens.filter(p => p.id !== id));
-  };
-
-  const abrirModalRecebimento = (item) => {
-    const hoje = new Date().toISOString().split('T')[0];
-    setFormRecebimento({ forma_pagamento: 'PIX', data_recebimento: hoje, observacoes: '' });
-    setModalRecebimento(item);
-  };
-
-  const handleRegistrarRecebimento = async () => {
-    if (!modalRecebimento || !pacienteSelecionado) return;
-    setSalvandoRecebimento(true);
-    const valor = Number(modalRecebimento.valor);
-
-    // 1. Salvar no histórico de recebimentos
-    const { error } = await supabase.from('recebimentos').insert({
-      paciente_id: pacienteSelecionado.id,
-      plano_item_id: modalRecebimento.id,
-      procedimento: modalRecebimento.procedimento,
-      valor,
-      forma_pagamento: formRecebimento.forma_pagamento,
-      data_recebimento: formRecebimento.data_recebimento,
-      observacoes: formRecebimento.observacoes || null,
-    });
-    if (error) { setSalvandoRecebimento(false); alert('Erro ao registrar: ' + error.message); return; }
-
-    // 2. Marcar item do plano como pago
-    await supabase.from('plano_tratamento').update({ pago: true }).eq('id', modalRecebimento.id);
-    setPlanoItens(prev => prev.map(p => p.id === modalRecebimento.id ? { ...p, pago: true } : p));
-
-    // 3. Lançar no financeiro (tabela lancamentos)
-    await supabase.from('lancamentos').insert({
-      tipo: 'entrada',
-      descricao: `${modalRecebimento.procedimento} — ${pacienteSelecionado.nome}`,
-      categoria: 'Consulta',
-      valor,
-      status: 'pago',
-      data: formRecebimento.data_recebimento,
-    });
-
-    setSalvandoRecebimento(false);
-    setModalRecebimento(null);
-  };
-
-  // ─── EVOLUÇÃO CLÍNICA ─────────────────────────────────────────
-  const carregarEvolucoes = async (pacienteId) => {
-    const { data } = await supabase.from('evolucoes').select('*').eq('paciente_id', pacienteId).order('criado_em', { ascending: false });
-    setEvolucoes(data || []);
-  };
-
-  const abrirModalEvolucao = (ev = null) => {
-    if (ev) {
-      setEditEvolucaoId(ev.id);
-      setFormEvolucao({ procedimento: ev.procedimento || '', descricao: ev.descricao || '', dentista: ev.dentista || '' });
-    } else {
-      setEditEvolucaoId(null);
-      setFormEvolucao({ procedimento: '', descricao: '', dentista: nomeDentistaLogado });
-    }
-    setModalEvolucao(true);
-  };
-
-  const handleSalvarEvolucao = async () => {
-    if (!formEvolucao.procedimento || !formEvolucao.descricao) { alert('Preencha procedimento e descrição'); return; }
-    setSalvandoEvolucao(true);
-    const dados = { procedimento: formEvolucao.procedimento, descricao: formEvolucao.descricao, dentista: formEvolucao.dentista, paciente_id: pacienteSelecionado.id };
-    let error;
-    if (editEvolucaoId) {
-      ({ error } = await supabase.from('evolucoes').update(dados).eq('id', editEvolucaoId));
-    } else {
-      ({ error } = await supabase.from('evolucoes').insert([dados]));
-    }
-    if (error) { alert('Erro: ' + error.message); }
-    else { await carregarEvolucoes(pacienteSelecionado.id); setModalEvolucao(false); }
-    setSalvandoEvolucao(false);
-  };
-
-  const handleExcluirEvolucao = async (id) => {
-    if (!confirm('Excluir esta evolução?')) return;
-    await supabase.from('evolucoes').delete().eq('id', id);
-    setEvolucoes(evolucoes.filter(e => e.id !== id));
-  };
-
+  // ─────────────────────────────────────────────────────────
+  // Odontograma
+  // ─────────────────────────────────────────────────────────
   const setToothStatus = (n, status) => {
     setTeeth(prev => prev.map(t => t.n === n ? { ...t, s: status } : t));
     setSelectedTooth(null);
   };
 
+  // ─────────────────────────────────────────────────────────
+  // Busca paciente
+  // ─────────────────────────────────────────────────────────
   const pacientesFiltrados = buscaFocada
     ? (buscaPaciente.length >= 2
         ? pacientes.filter(p => p.nome.toLowerCase().includes(buscaPaciente.toLowerCase()))
@@ -514,73 +707,108 @@ export default function Prontuario() {
     return anos + ' anos';
   };
 
+  const avatarCor = pacienteSelecionado ? corAvatar(pacienteSelecionado.nome) : CORES_AVATAR[0];
+
+  // ─────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────
   return (
     <div style={s.main}>
-      <PageHeader title="Prontuário" subtitle="Ficha clínica do paciente">
+      <style>{`
+        @keyframes shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+        @media print {
+          body { background: #fff; }
+          button, .no-print { display: none !important; }
+        }
+      `}</style>
+
+      <PageHeader
+        title="Prontuário"
+        subtitle={pacienteSelecionado ? pacienteSelecionado.nome : 'Ficha clínica do paciente'}
+      >
         {pacienteSelecionado && (
           <>
-            <Button variant="ghost">Imprimir</Button>
+            <Button variant="ghost" onClick={() => window.print()}>
+              <Printer size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Imprimir
+            </Button>
             {activeTab === 'Anamnese' && (
               <Button onClick={() => { setFormAnamnese(anamnese || anamneseVazia); setEditandoAnamnese(true); }}>
-                {anamnese ? 'Editar anamnese' : '+ Nova anamnese'}
+                {anamnese ? (
+                  <><Edit3 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Editar anamnese</>
+                ) : (
+                  <><Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Nova anamnese</>
+                )}
               </Button>
             )}
-            {activeTab === 'Evolução clínica' && <Button onClick={() => abrirModalEvolucao()}>+ Nova evolução</Button>}
+            {activeTab === 'Evolução clínica' && (
+              <Button onClick={() => abrirModalEvolucao()}>
+                <Plus size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Nova evolução
+              </Button>
+            )}
           </>
         )}
       </PageHeader>
 
       {/* Busca de paciente */}
       {!pacienteSelecionado && (
-        <div style={{ marginBottom: 24, position: 'relative' }}>
-          <input
-            type="text"
-            placeholder="Buscar paciente pelo nome..."
-            value={buscaPaciente}
-            onChange={e => setBuscaPaciente(e.target.value)}
-            onFocus={() => setBuscaFocada(true)}
-            onBlur={() => setTimeout(() => setBuscaFocada(false), 150)}
-            style={{ width: '100%', padding: '12px 16px', border: '1.5px solid #E8E8E8', borderRadius: 10, fontSize: 14, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', background: '#fff' }}
-          />
+        <div style={{ marginBottom: 4, position: 'relative' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#AAA', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Buscar paciente pelo nome..."
+              value={buscaPaciente}
+              onChange={e => setBuscaPaciente(e.target.value)}
+              onFocus={() => setBuscaFocada(true)}
+              onBlur={() => setTimeout(() => setBuscaFocada(false), 150)}
+              style={{ width: '100%', padding: '12px 16px 12px 42px', border: '1.5px solid #E8E8E8', borderRadius: 10, fontSize: 14, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', background: '#fff', outline: 'none' }}
+            />
+          </div>
           {pacientesFiltrados.length > 0 && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid #E8E8E8', borderRadius: 10, zIndex: 50, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', marginTop: 4 }}>
-              {pacientesFiltrados.map(p => (
-                <div key={p.id} onClick={() => {
-                  setPacienteSelecionado(p);
-                  setBuscaPaciente('');
-                  setAnamnese(null);
-                  setFormAnamnese(anamneseVazia);
-                  setEditandoAnamnese(false);
-                  setPlanoItens([]);
-                  localStorage.setItem('prontuario_paciente_id', p.id);
-                  localStorage.setItem('prontuario_paciente_nome', p.nome || '');
-                  carregarAnamnese(p.id);
-                  carregarPlano(p.id);
-                  router.replace(`/prontuario?paciente=${p.id}`);
-                }}
-                  style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #F5F5F5', fontSize: 13 }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F8F8F8'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                >
-                  <strong>{p.nome}</strong>
-                  <span style={{ color: '#AAA', marginLeft: 12, fontSize: 12 }}>{p.cpf || ''} {p.telefone ? '· ' + p.telefone : ''}</span>
-                </div>
-              ))}
+              {pacientesFiltrados.map(p => {
+                const c = corAvatar(p.nome);
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => selecionarPaciente(p)}
+                    style={{ padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid #F5F5F5', fontSize: 13, display: 'flex', alignItems: 'center', gap: 12 }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#FAFAFA'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: c.bg, color: c.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                      {iniciaisNome(p.nome)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <strong>{p.nome}</strong>
+                      <span style={{ color: '#AAA', marginLeft: 12, fontSize: 12 }}>{p.cpf || ''} {p.telefone ? '· ' + p.telefone : ''}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
           {buscaFocada && buscaPaciente.length >= 2 && pacientesFiltrados.length === 0 && (
-            <div style={{ marginTop: 8, fontSize: 13, color: '#AAA' }}>Nenhum paciente encontrado. <a href="/pacientes" style={{ color: '#A8D5C2' }}>Cadastrar novo</a></div>
+            <div style={{ marginTop: 8, fontSize: 13, color: '#AAA' }}>
+              Nenhum paciente encontrado. <a href="/pacientes" style={{ color: '#3E7D63', fontWeight: 500 }}>Cadastrar novo</a>
+            </div>
           )}
           {buscaFocada && buscaPaciente.length < 2 && pacientes.length === 0 && (
-            <div style={{ marginTop: 8, fontSize: 13, color: '#AAA' }}>Nenhum paciente cadastrado. <a href="/pacientes" style={{ color: '#A8D5C2' }}>Cadastrar novo</a></div>
+            <div style={{ marginTop: 8, fontSize: 13, color: '#AAA' }}>
+              Nenhum paciente cadastrado. <a href="/pacientes" style={{ color: '#3E7D63', fontWeight: 500 }}>Cadastrar novo</a>
+            </div>
           )}
         </div>
       )}
 
       {pacienteSelecionado && (
         <div style={s.patientCard}>
-          <div style={s.avatar}>{pacienteSelecionado.nome.slice(0, 2).toUpperCase()}</div>
-          <div style={{ flex: 1 }}>
+          <div style={{ ...s.avatar, background: avatarCor.bg, color: avatarCor.text }}>
+            {iniciaisNome(pacienteSelecionado.nome)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={s.patientName}>{pacienteSelecionado.nome}</div>
             <div style={s.patientMeta}>
               {[
@@ -595,610 +823,754 @@ export default function Prontuario() {
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Badge color={pacienteSelecionado.status === 'ativo' ? 'green' : 'gray'}>{pacienteSelecionado.status}</Badge>
-            <Button
-              variant="ghost"
-              style={{ padding: '8px 14px', fontSize: 12 }}
-              onClick={() => {
-                setPacienteSelecionado(null);
-                setActiveTab('Odontograma');
-                setAnamnese(null);
-                setFormAnamnese(anamneseVazia);
-                setEditandoAnamnese(false);
-                localStorage.removeItem('prontuario_paciente_id');
-                localStorage.removeItem('prontuario_paciente_nome');
-                router.replace('/prontuario');
-              }}
-            >
-              Trocar
-            </Button>
+            <Button variant="ghost" style={{ padding: '8px 14px', fontSize: 12 }} onClick={limparPaciente}>Trocar</Button>
           </div>
         </div>
       )}
 
       {pacienteSelecionado ? (
         <>
-      <div style={s.tabs}>
-        {tabs.map(t => (
-          <div key={t} style={{ ...s.tab, ...(activeTab === t ? s.tabActive : {}) }} onClick={() => setActiveTab(t)}>{t}</div>
-        ))}
-      </div>
-
-      {activeTab === 'Odontograma' && (
-        <Card>
-          <CardTitle>
-            Odontograma
-            <span style={{ fontSize: 11, color: '#AAA', fontWeight: 300, marginLeft: 8 }}>clique no dente para alterar</span>
-          </CardTitle>
-          <OdontogramaSVG teeth={teeth} selectedTooth={selectedTooth} onToothClick={t => setSelectedTooth(prev => prev?.n === t.n ? null : t)} />
-          <div style={s.legend}>
-            {statusOptions.map(opt => (
-              <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#777' }}>
-                <div style={{ width: 9, height: 9, borderRadius: 2, background: opt.color }} />
-                {opt.label}
-              </div>
-            ))}
+          {/* Tabs sticky */}
+          <div style={s.tabsWrap} className="no-print">
+            <div style={s.tabs}>
+              {tabs.map(t => {
+                const Icon = t.icon;
+                const ativo = activeTab === t.key;
+                return (
+                  <div key={t.key} style={{ ...s.tab, ...(ativo ? s.tabActive : {}) }} onClick={() => setActiveTab(t.key)}>
+                    <Icon size={14} strokeWidth={ativo ? 2.4 : 2} />
+                    <span>{t.key}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </Card>
-      )}
 
-      {activeTab === 'Anamnese' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {!editandoAnamnese ? (
-            <>
-              <Card>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Informações gerais</span>
-                  <button onClick={() => { setFormAnamnese(anamnese || anamneseVazia); setEditandoAnamnese(true); }} style={s.editBtn}>
-                    {anamnese ? 'Editar' : '+ Preencher anamnese'}
-                  </button>
-                </div>
-                {!anamnese ? (
-                  <p style={{ color: '#AAA', fontSize: 13 }}>Anamnese não preenchida. Clique em "+ Preencher anamnese" para adicionar.</p>
-                ) : (
+          {/* ──────── Odontograma ──────── */}
+          {activeTab === 'Odontograma' && (
+            <Card>
+              <CardTitle>
+                Odontograma
+                <span style={{ fontSize: 11, color: '#AAA', fontWeight: 300, marginLeft: 8 }}>clique no dente para alterar</span>
+              </CardTitle>
+              {carregandoPaciente ? (
+                <div style={s.shimmerBlock} />
+              ) : (
+                <OdontogramaSVG
+                  teeth={teeth}
+                  selectedTooth={selectedTooth}
+                  onToothClick={t => setSelectedTooth(prev => prev?.n === t.n ? null : t)}
+                />
+              )}
+              <div style={s.legend}>
+                {statusOptions.map(opt => (
+                  <div key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#777' }}>
+                    <div style={{ width: 9, height: 9, borderRadius: 2, background: opt.color }} />
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* ──────── Anamnese ──────── */}
+          {activeTab === 'Anamnese' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {carregandoPaciente ? (
+                <Card><div style={s.shimmerBlock} /></Card>
+              ) : !editandoAnamnese ? (
+                <>
+                  <Card>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Informações gerais</span>
+                      {anamnese && (
+                        <button onClick={() => { setFormAnamnese(anamnese); setEditandoAnamnese(true); }} style={s.editBtn}>
+                          <Edit3 size={12} /> Editar
+                        </button>
+                      )}
+                    </div>
+                    {!anamnese ? (
+                      <EmptyState
+                        Icon={ClipboardList}
+                        title="Anamnese não preenchida"
+                        subtitle="Registre queixas, histórico médico e condições sistêmicas do paciente."
+                        ctaIcon={Plus}
+                        cta="Preencher anamnese"
+                        onCta={() => { setFormAnamnese(anamneseVazia); setEditandoAnamnese(true); }}
+                      />
+                    ) : (
+                      <div style={s.anamneseGrid}>
+                        {[
+                          ['Queixa principal', anamnese.queixa_principal],
+                          ['Histórico médico', anamnese.historico_medico],
+                          ['Alergias', anamnese.alergias],
+                          ['Medicamentos em uso', anamnese.medicamentos],
+                          ['Histórico odontológico', anamnese.historico_odontologico],
+                          ['Hábitos', anamnese.habitos],
+                        ].map(([label, value]) => value ? (
+                          <div key={label} style={s.anamneseItem}>
+                            <div style={s.anamneseLabel}>{label}</div>
+                            <div style={s.anamneseValue}>{value}</div>
+                          </div>
+                        ) : null)}
+                        {(anamnese.campos_extras || []).filter(c => c.label && c.valor).map((c, i) => (
+                          <div key={i} style={s.anamneseItem}>
+                            <div style={s.anamneseLabel}>{c.label}</div>
+                            <div style={s.anamneseValue}>{c.valor}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                  {anamnese && (
+                    <Card>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Histórico sistêmico</span>
+                        <button onClick={() => { setFormAnamnese(anamnese); setEditandoAnamnese(true); }} style={s.editBtn}>
+                          <Edit3 size={12} /> Editar
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                        {[
+                          ['Diabetes', 'diabetes'], ['Hipertensão', 'hipertensao'], ['Cardiopatia', 'cardiopatia'],
+                          ['Coagulopatia', 'coagulopatia'], ['Osteoporose', 'osteoporose'], ['HIV/AIDS', 'hiv_aids'],
+                          ['Hepatite', 'hepatite'], ['Gestante', 'gestante'], ['Fumante', 'fumante'],
+                        ].map(([label, key]) => {
+                          const has = anamnese?.[key] || false;
+                          return (
+                            <div key={key} style={{ ...s.condTag, ...(has ? s.condTagActive : {}) }}>
+                              {has
+                                ? <Check size={12} strokeWidth={2.5} />
+                                : <span style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid #CCC', display: 'inline-block' }} />}
+                              {label}
+                            </div>
+                          );
+                        })}
+                        {(anamnese?.campos_extras || []).filter(c => c.tipo === 'condicao').map((c, i) => (
+                          <div key={i} style={{ ...s.condTag, ...s.condTagActive }}>
+                            <Check size={12} strokeWidth={2.5} /> {c.label}
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <Card>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                    <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>
+                      {anamnese ? 'Editar anamnese' : 'Nova anamnese'}
+                    </span>
+                    <button onClick={() => setEditandoAnamnese(false)} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                      <X size={16} />
+                    </button>
+                  </div>
                   <div style={s.anamneseGrid}>
                     {[
-                      ['Queixa principal', anamnese.queixa_principal],
-                      ['Histórico médico', anamnese.historico_medico],
-                      ['Alergias', anamnese.alergias],
-                      ['Medicamentos em uso', anamnese.medicamentos],
-                      ['Histórico odontológico', anamnese.historico_odontologico],
-                      ['Hábitos', anamnese.habitos],
-                    ].map(([label, value]) => value ? (
-                      <div key={label} style={s.anamneseItem}>
+                      ['Queixa principal', 'queixa_principal', 'Ex: Dor ao mastigar no lado direito'],
+                      ['Histórico médico', 'historico_medico', 'Ex: Hipertensão, diabetes...'],
+                      ['Alergias', 'alergias', 'Ex: Penicilina, látex...'],
+                      ['Medicamentos em uso', 'medicamentos', 'Ex: Losartana 50mg...'],
+                      ['Histórico odontológico', 'historico_odontologico', 'Ex: Canal, extrações...'],
+                      ['Hábitos', 'habitos', 'Ex: Bruxismo, tabagismo...'],
+                    ].map(([label, key, placeholder]) => (
+                      <div key={key} style={s.anamneseItem}>
                         <div style={s.anamneseLabel}>{label}</div>
-                        <div style={s.anamneseValue}>{value}</div>
+                        <textarea
+                          value={formAnamnese[key] || ''}
+                          onChange={e => setFormAnamnese({ ...formAnamnese, [key]: e.target.value })}
+                          placeholder={placeholder}
+                          rows={2}
+                          style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box' }}
+                        />
                       </div>
-                    ) : null)}
-                    {(anamnese.campos_extras || []).filter(c => c.label && c.valor).map((c, i) => (
-                      <div key={i} style={s.anamneseItem}>
-                        <div style={s.anamneseLabel}>{c.label}</div>
-                        <div style={s.anamneseValue}>{c.valor}</div>
+                    ))}
+                  </div>
+
+                  {/* Campos extras */}
+                  <div style={{ marginTop: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <div style={s.anamneseLabel}>Informações adicionais</div>
+                      <button
+                        onClick={() => setFormAnamnese({ ...formAnamnese, campos_extras: [...(formAnamnese.campos_extras || []), { label: '', valor: '' }] })}
+                        style={{ background: 'none', border: '1.5px dashed #A8D5C2', borderRadius: 8, padding: '4px 12px', fontSize: 12, color: '#3E7D63', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Plus size={12} /> Adicionar campo
+                      </button>
+                    </div>
+                    {(formAnamnese.campos_extras || []).filter(c => c.tipo !== 'condicao').map((campo, i) => {
+                      const idxGlobal = formAnamnese.campos_extras.indexOf(campo);
+                      return (
+                        <div key={idxGlobal} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 32px', gap: 8, marginBottom: 8, alignItems: 'start' }}>
+                          <input
+                            placeholder="Nome do campo"
+                            value={campo.label}
+                            onChange={e => {
+                              const extras = [...formAnamnese.campos_extras];
+                              extras[idxGlobal] = { ...extras[idxGlobal], label: e.target.value };
+                              setFormAnamnese({ ...formAnamnese, campos_extras: extras });
+                            }}
+                            style={{ padding: '8px 10px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 12, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }}
+                          />
+                          <textarea
+                            placeholder="Valor"
+                            value={campo.valor}
+                            rows={2}
+                            onChange={e => {
+                              const extras = [...formAnamnese.campos_extras];
+                              extras[idxGlobal] = { ...extras[idxGlobal], valor: e.target.value };
+                              setFormAnamnese({ ...formAnamnese, campos_extras: extras });
+                            }}
+                            style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box' }}
+                          />
+                          <button
+                            onClick={() => setFormAnamnese({ ...formAnamnese, campos_extras: formAnamnese.campos_extras.filter((_, j) => j !== idxGlobal) })}
+                            style={{ background: 'none', border: 'none', color: '#C5585A', cursor: 'pointer', paddingTop: 8, display: 'flex', justifyContent: 'center' }}
+                          ><Trash2 size={14} /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ marginTop: 20 }}>
+                    <div style={s.anamneseLabel}>Histórico sistêmico</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                      {[
+                        ['Diabetes', 'diabetes'], ['Hipertensão', 'hipertensao'], ['Cardiopatia', 'cardiopatia'],
+                        ['Coagulopatia', 'coagulopatia'], ['Osteoporose', 'osteoporose'], ['HIV/AIDS', 'hiv_aids'],
+                        ['Hepatite', 'hepatite'], ['Gestante', 'gestante'], ['Fumante', 'fumante'],
+                      ].map(([label, key]) => {
+                        const ativo = formAnamnese[key] || false;
+                        return (
+                          <button key={key} onClick={() => setFormAnamnese({ ...formAnamnese, [key]: !ativo })}
+                            style={{ ...s.condTag, ...(ativo ? s.condTagActive : {}), cursor: 'pointer', border: ativo ? '1.5px solid #A8D5C2' : '1.5px solid #EFEFEF' }}>
+                            {ativo
+                              ? <Check size={12} strokeWidth={2.5} />
+                              : <span style={{ width: 8, height: 8, borderRadius: '50%', border: '1.5px solid #CCC', display: 'inline-block' }} />}
+                            {label}
+                          </button>
+                        );
+                      })}
+                      {(formAnamnese.campos_extras || []).filter(c => c.tipo === 'condicao').map((c) => {
+                        const idxGlobal = formAnamnese.campos_extras.indexOf(c);
+                        return (
+                          <div key={idxGlobal} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 20, border: '1.5px solid #A8D5C2', background: '#F0FBF6' }}>
+                            <Check size={12} strokeWidth={2.5} color="#3E7D63" />
+                            <span style={{ fontSize: 12, color: '#3E7D63' }}>{c.label}</span>
+                            <button onClick={() => setFormAnamnese({ ...formAnamnese, campos_extras: formAnamnese.campos_extras.filter((_, j) => j !== idxGlobal) })}
+                              style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', padding: '0 0 0 4px', display: 'flex' }}><X size={12} /></button>
+                          </div>
+                        );
+                      })}
+                      {novaCondicao !== null && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <input
+                            autoFocus
+                            placeholder="Ex: Asma, Epilepsia..."
+                            value={novaCondicao}
+                            onChange={e => setNovaCondicao(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && novaCondicao.trim()) {
+                                setFormAnamnese({ ...formAnamnese, campos_extras: [...(formAnamnese.campos_extras || []), { tipo: 'condicao', label: novaCondicao.trim(), valor: '' }] });
+                                setNovaCondicao('');
+                              }
+                              if (e.key === 'Escape') setNovaCondicao(null);
+                            }}
+                            style={{ padding: '4px 10px', borderRadius: 20, border: '1.5px solid #A8D5C2', fontSize: 12, fontFamily: "'DM Sans', sans-serif", width: 180, outline: 'none' }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (novaCondicao.trim()) {
+                                setFormAnamnese({ ...formAnamnese, campos_extras: [...(formAnamnese.campos_extras || []), { tipo: 'condicao', label: novaCondicao.trim(), valor: '' }] });
+                                setNovaCondicao('');
+                              }
+                            }}
+                            style={{ padding: '4px 10px', borderRadius: 20, background: '#A8D5C2', border: 'none', fontSize: 12, cursor: 'pointer', color: '#1A1A1A' }}
+                          >OK</button>
+                          <button onClick={() => setNovaCondicao(null)} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', display: 'flex' }}><X size={13} /></button>
+                        </div>
+                      )}
+                      {novaCondicao === null && (
+                        <button
+                          onClick={() => setNovaCondicao('')}
+                          style={{ padding: '5px 12px', borderRadius: 20, border: '1.5px dashed #A8D5C2', background: 'none', fontSize: 12, color: '#3E7D63', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <Plus size={12} /> Nova condição
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                    <Button variant="ghost" onClick={() => setEditandoAnamnese(false)}>Cancelar</Button>
+                    <Button onClick={handleSalvarAnamnese} disabled={salvandoAnamnese}>
+                      {salvandoAnamnese ? 'Salvando...' : 'Salvar anamnese'}
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* ──────── Plano de tratamento ──────── */}
+          {activeTab === 'Plano de tratamento' && (
+            <>
+              <Card style={{ overflow: 'visible' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Plano de tratamento</span>
+                  <button onClick={() => { setEditPlanoId(null); setFormPlano({ procedimento: '', valor: '', status: 'pendente' }); setModalPlano(true); }} style={s.editBtn}>
+                    <Plus size={12} /> Adicionar
+                  </button>
+                </div>
+                {carregandoPaciente ? (
+                  <div style={s.shimmerBlock} />
+                ) : planoItens.length === 0 ? (
+                  <EmptyState
+                    Icon={FileSearch}
+                    title="Nenhum item no plano"
+                    subtitle="Adicione procedimentos planejados para acompanhar execução e pagamento."
+                    ctaIcon={Plus}
+                    cta="Adicionar procedimento"
+                    onCta={() => { setEditPlanoId(null); setFormPlano({ procedimento: '', valor: '', status: 'pendente' }); setModalPlano(true); }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {planoItens.map(p => (
+                      <div key={p.id} style={s.planItem}>
+                        <div onClick={() => handleToggleStatus(p)} style={{ ...s.planCheck, ...(p.status === 'feito' ? s.planCheckDone : {}), cursor: 'pointer' }}>
+                          {p.status === 'feito' && <Check size={10} color="#fff" strokeWidth={3} />}
+                        </div>
+                        <span style={{ flex: 1, fontSize: 13 }}>{p.procedimento}</span>
+                        <span style={{ fontSize: 12, color: '#888', marginRight: 8 }}>R$ {Number(p.valor).toFixed(2).replace('.', ',')}</span>
+                        <Badge color={p.status === 'feito' ? 'green' : 'yellow'}>{p.status === 'feito' ? 'Feito' : 'Pendente'}</Badge>
+                        <div style={{ display: 'flex', gap: 6, marginLeft: 10, alignItems: 'center', position: 'relative' }}>
+                          {p.status === 'feito' && (
+                            p.pago ? (
+                              <span style={{ padding: '4px 10px', fontSize: 11, background: '#EAF5EF', color: '#3E7D63', border: '1px solid #A8D5C2', borderRadius: 6, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <Check size={11} strokeWidth={2.5} /> Recebido
+                              </span>
+                            ) : (
+                              <button onClick={() => abrirModalRecebimento(p)} style={{ padding: '4px 10px', fontSize: 11, background: '#EAF5EF', color: '#3E7D63', border: '1px solid #A8D5C2', borderRadius: 6, cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <DollarSign size={11} strokeWidth={2.2} /> Receber
+                              </button>
+                            )
+                          )}
+                          <button
+                            onClick={() => setMenuPlanoId(menuPlanoId === p.id ? null : p.id)}
+                            style={{ ...s.iconBtn, color: '#888' }}
+                            aria-label="Mais ações"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                          {menuPlanoId === p.id && (
+                            <>
+                              <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setMenuPlanoId(null)} />
+                              <div style={s.dropdown}>
+                                <button
+                                  style={s.dropdownItem}
+                                  onClick={() => {
+                                    setEditPlanoId(p.id);
+                                    setFormPlano({ procedimento: p.procedimento, valor: String(p.valor), status: p.status });
+                                    setModalPlano(true);
+                                    setMenuPlanoId(null);
+                                  }}
+                                ><Edit3 size={12} /> Editar</button>
+                                <button
+                                  style={{ ...s.dropdownItem, color: '#C5585A' }}
+                                  onClick={() => { setMenuPlanoId(null); handleExcluirPlano(p.id); }}
+                                ><Trash2 size={12} /> Excluir</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </Card>
-              <Card>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Histórico sistêmico</span>
-                  <button onClick={() => { setFormAnamnese(anamnese || anamneseVazia); setEditandoAnamnese(true); }} style={s.editBtn}>Editar</button>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  {[
-                    ['Diabetes', 'diabetes'], ['Hipertensão', 'hipertensao'], ['Cardiopatia', 'cardiopatia'],
-                    ['Coagulopatia', 'coagulopatia'], ['Osteoporose', 'osteoporose'], ['HIV/AIDS', 'hiv_aids'],
-                    ['Hepatite', 'hepatite'], ['Gestante', 'gestante'], ['Fumante', 'fumante'],
-                  ].map(([label, key]) => {
-                    const has = anamnese?.[key] || false;
-                    return (
-                      <div key={key} style={{ ...s.condTag, ...(has ? s.condTagActive : {}) }}>
-                        <span style={{ fontSize: 11 }}>{has ? '✓' : '○'}</span> {label}
+                {planoItens.length > 0 && (() => {
+                  const total = planoItens.reduce((sum, p) => sum + Number(p.valor), 0);
+                  const realizado = planoItens.filter(p => p.status === 'feito').reduce((sum, p) => sum + Number(p.valor), 0);
+                  return (
+                    <>
+                      <div style={{ marginTop: 20, padding: '14px 16px', background: '#FAFAFA', borderRadius: 10, display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 13, color: '#888' }}>Total do tratamento</span>
+                        <span style={{ fontSize: 16, fontWeight: 500 }}>R$ {total.toFixed(2).replace('.', ',')}</span>
                       </div>
-                    );
-                  })}
-                  {(anamnese?.campos_extras || []).filter(c => c.tipo === 'condicao').map((c, i) => (
-                    <div key={i} style={{ ...s.condTag, ...s.condTagActive }}>
-                      <span style={{ fontSize: 11 }}>✓</span> {c.label}
-                    </div>
-                  ))}
-                </div>
+                      <div style={{ marginTop: 8, padding: '14px 16px', background: '#EAF5EF', borderRadius: 10, display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 13, color: '#3E7D63' }}>Já realizado</span>
+                        <span style={{ fontSize: 16, fontWeight: 500, color: '#3E7D63' }}>R$ {realizado.toFixed(2).replace('.', ',')}</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </Card>
-            </>
-          ) : (
-            <Card>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>
-                  {anamnese ? 'Editar anamnese' : 'Nova anamnese'}
-                </span>
-                <button onClick={() => setEditandoAnamnese(false)} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', fontSize: 14 }}>✕</button>
-              </div>
-              <div style={s.anamneseGrid}>
-                {[
-                  ['Queixa principal', 'queixa_principal', 'Ex: Dor ao mastigar no lado direito'],
-                  ['Histórico médico', 'historico_medico', 'Ex: Hipertensão, diabetes...'],
-                  ['Alergias', 'alergias', 'Ex: Penicilina, látex...'],
-                  ['Medicamentos em uso', 'medicamentos', 'Ex: Losartana 50mg...'],
-                  ['Histórico odontológico', 'historico_odontologico', 'Ex: Canal, extrações...'],
-                  ['Hábitos', 'habitos', 'Ex: Bruxismo, tabagismo...'],
-                ].map(([label, key, placeholder]) => (
-                  <div key={key} style={s.anamneseItem}>
-                    <div style={s.anamneseLabel}>{label}</div>
-                    <textarea
-                      value={formAnamnese[key] || ''}
-                      onChange={e => setFormAnamnese({ ...formAnamnese, [key]: e.target.value })}
-                      placeholder={placeholder}
-                      rows={2}
-                      style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                ))}
-              </div>
-              {/* Campos extras dinâmicos */}
-              <div style={{ marginTop: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={s.anamneseLabel}>Informações adicionais</div>
-                  <button
-                    onClick={() => setFormAnamnese({ ...formAnamnese, campos_extras: [...(formAnamnese.campos_extras || []), { label: '', valor: '' }] })}
-                    style={{ background: 'none', border: '1.5px dashed #A8D5C2', borderRadius: 8, padding: '4px 12px', fontSize: 12, color: '#27AE60', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    + Adicionar campo
-                  </button>
-                </div>
-                {(formAnamnese.campos_extras || []).map((campo, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 32px', gap: 8, marginBottom: 8, alignItems: 'start' }}>
-                    <input
-                      placeholder="Nome do campo"
-                      value={campo.label}
-                      onChange={e => {
-                        const extras = [...formAnamnese.campos_extras];
-                        extras[i] = { ...extras[i], label: e.target.value };
-                        setFormAnamnese({ ...formAnamnese, campos_extras: extras });
-                      }}
-                      style={{ padding: '8px 10px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 12, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }}
-                    />
-                    <textarea
-                      placeholder="Valor"
-                      value={campo.valor}
-                      rows={2}
-                      onChange={e => {
-                        const extras = [...formAnamnese.campos_extras];
-                        extras[i] = { ...extras[i], valor: e.target.value };
-                        setFormAnamnese({ ...formAnamnese, campos_extras: extras });
-                      }}
-                      style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", resize: 'vertical', boxSizing: 'border-box' }}
-                    />
-                    <button
-                      onClick={() => setFormAnamnese({ ...formAnamnese, campos_extras: formAnamnese.campos_extras.filter((_, j) => j !== i) })}
-                      style={{ background: 'none', border: 'none', color: '#E74C3C', cursor: 'pointer', fontSize: 16, paddingTop: 8 }}
-                    >✕</button>
-                  </div>
-                ))}
-              </div>
 
-              <div style={{ marginTop: 20 }}>
-                <div style={s.anamneseLabel}>Histórico sistêmico</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
-                  {[
-                    ['Diabetes', 'diabetes'], ['Hipertensão', 'hipertensao'], ['Cardiopatia', 'cardiopatia'],
-                    ['Coagulopatia', 'coagulopatia'], ['Osteoporose', 'osteoporose'], ['HIV/AIDS', 'hiv_aids'],
-                    ['Hepatite', 'hepatite'], ['Gestante', 'gestante'], ['Fumante', 'fumante'],
-                  ].map(([label, key]) => {
-                    const ativo = formAnamnese[key] || false;
-                    return (
-                      <button key={key} onClick={() => setFormAnamnese({ ...formAnamnese, [key]: !ativo })}
-                        style={{ ...s.condTag, ...(ativo ? s.condTagActive : {}), cursor: 'pointer', border: ativo ? '1.5px solid #A8D5C2' : '1.5px solid #EFEFEF' }}>
-                        <span style={{ fontSize: 11 }}>{ativo ? '✓' : '○'}</span> {label}
-                      </button>
-                    );
-                  })}
-                  {/* Condições extras */}
-                  {(formAnamnese.campos_extras || []).filter(c => c.tipo === 'condicao').map((c, i) => {
-                    const idxGlobal = formAnamnese.campos_extras.indexOf(c);
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 20, border: '1.5px solid #A8D5C2', background: '#F0FBF6' }}>
-                        <span style={{ fontSize: 11, color: '#27AE60' }}>✓</span>
-                        <span style={{ fontSize: 12, color: '#27AE60' }}>{c.label}</span>
-                        <button onClick={() => setFormAnamnese({ ...formAnamnese, campos_extras: formAnamnese.campos_extras.filter((_, j) => j !== idxGlobal) })}
-                          style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', fontSize: 12, padding: '0 0 0 4px' }}>✕</button>
-                      </div>
-                    );
-                  })}
-                  {/* Input inline para nova condição */}
-                  {novaCondicao !== null && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input
+              {/* Modal plano */}
+              {modalPlano && (
+                <ModalShell titulo={editPlanoId ? 'Editar item' : 'Novo item do plano'} onClose={() => setModalPlano(false)} maxWidth={500}>
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={m.label}>Procedimento *</label>
+                      <select
+                        value={formPlano.procedimento}
+                        onChange={e => {
+                          const nome = e.target.value;
+                          const proc = procedimentosCadastrados.find(p => p.nome === nome);
+                          setFormPlano({ ...formPlano, procedimento: nome, valor: proc ? String(proc.preco) : formPlano.valor });
+                        }}
+                        style={m.input}
                         autoFocus
-                        placeholder="Ex: Asma, Epilepsia..."
-                        value={novaCondicao}
-                        onChange={e => setNovaCondicao(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && novaCondicao.trim()) {
-                            setFormAnamnese({ ...formAnamnese, campos_extras: [...(formAnamnese.campos_extras || []), { tipo: 'condicao', label: novaCondicao.trim(), valor: '' }] });
-                            setNovaCondicao('');
-                          }
-                          if (e.key === 'Escape') setNovaCondicao('');
-                        }}
-                        style={{ padding: '4px 10px', borderRadius: 20, border: '1.5px solid #A8D5C2', fontSize: 12, fontFamily: "'DM Sans', sans-serif", width: 180, outline: 'none' }}
-                      />
-                      <button
-                        onClick={() => {
-                          if (novaCondicao.trim()) {
-                            setFormAnamnese({ ...formAnamnese, campos_extras: [...(formAnamnese.campos_extras || []), { tipo: 'condicao', label: novaCondicao.trim(), valor: '' }] });
-                            setNovaCondicao('');
-                          }
-                        }}
-                        style={{ padding: '4px 10px', borderRadius: 20, background: '#A8D5C2', border: 'none', fontSize: 12, cursor: 'pointer', color: '#1A1A1A' }}
-                      >OK</button>
-                      <button onClick={() => setNovaCondicao('')} style={{ background: 'none', border: 'none', color: '#AAA', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                      >
+                        <option value="">Selecione um procedimento</option>
+                        {procedimentosCadastrados.map(p => (
+                          <option key={p.id} value={p.nome}>{p.nome} — R$ {Number(p.preco).toFixed(2).replace('.', ',')}</option>
+                        ))}
+                      </select>
                     </div>
-                  )}
-                  <button
-                    onClick={() => setNovaCondicao('')}
-                    style={{ padding: '5px 12px', borderRadius: 20, border: '1.5px dashed #A8D5C2', background: 'none', fontSize: 12, color: '#27AE60', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}
-                  >
-                    + Nova condição
-                  </button>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                <Button variant="ghost" onClick={() => setEditandoAnamnese(false)}>Cancelar</Button>
-                <Button onClick={handleSalvarAnamnese} disabled={salvandoAnamnese}>
-                  {salvandoAnamnese ? 'Salvando...' : 'Salvar anamnese'}
-                </Button>
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {activeTab === 'Plano de tratamento' && (
-        <>
-          <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Plano de tratamento</span>
-              <button onClick={() => { setEditPlanoId(null); setFormPlano({ procedimento: '', valor: '', status: 'pendente' }); setModalPlano(true); }} style={s.editBtn}>+ Adicionar</button>
-            </div>
-            {planoItens.length === 0 ? (
-              <p style={{ color: '#AAA', fontSize: 13 }}>Nenhum item no plano. Clique em "+ Adicionar" para incluir.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {planoItens.map(p => (
-                  <div key={p.id} style={s.planItem}>
-                    <div onClick={() => handleToggleStatus(p)} style={{ ...s.planCheck, ...(p.status === 'feito' ? s.planCheckDone : {}), cursor: 'pointer' }}>
-                      {p.status === 'feito' && <span style={{ fontSize: 10, color: '#fff' }}>✓</span>}
+                    <div>
+                      <label style={m.label}>Valor (R$)</label>
+                      <input type="number" min="0" step="0.01" value={formPlano.valor} onChange={e => setFormPlano({ ...formPlano, valor: e.target.value })} placeholder="0,00" style={m.input} />
                     </div>
-                    <span style={{ flex: 1, fontSize: 13 }}>{p.procedimento}</span>
-                    <span style={{ fontSize: 12, color: '#888', marginRight: 8 }}>R$ {Number(p.valor).toFixed(2).replace('.', ',')}</span>
-                    <Badge color={p.status === 'feito' ? 'green' : 'yellow'}>{p.status === 'feito' ? 'Feito' : 'Pendente'}</Badge>
-                    <div style={{ display: 'flex', gap: 6, marginLeft: 10 }}>
-                      {p.status === 'feito' && (
-                        p.pago
-                          ? <span style={{ padding: '4px 10px', fontSize: 11, background: '#E8F8F1', color: '#27AE60', border: '1px solid #A8D5C2', borderRadius: 6, fontWeight: 500 }}>✓ Recebido</span>
-                          : <button onClick={() => abrirModalRecebimento(p)} style={{ ...s.acaoBotao, padding: '4px 10px', fontSize: 11, background: '#E8F8F1', color: '#27AE60', border: '1px solid #A8D5C2' }}>$ Receber</button>
-                      )}
-                      <button onClick={() => { setEditPlanoId(p.id); setFormPlano({ procedimento: p.procedimento, valor: String(p.valor), status: p.status }); setModalPlano(true); }} style={{ ...s.acaoBotao, padding: '4px 10px', fontSize: 11 }}>Editar</button>
-                      <button onClick={() => handleExcluirPlano(p.id)} style={{ ...s.acaoBotao, padding: '4px 10px', fontSize: 11, color: '#E74C3C' }}>Excluir</button>
+                    <div>
+                      <label style={m.label}>Status</label>
+                      <select value={formPlano.status} onChange={e => setFormPlano({ ...formPlano, status: e.target.value })} style={m.input}>
+                        <option value="pendente">Pendente</option>
+                        <option value="feito">Feito</option>
+                      </select>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            {planoItens.length > 0 && (() => {
-              const total = planoItens.reduce((s, p) => s + Number(p.valor), 0);
-              const realizado = planoItens.filter(p => p.status === 'feito').reduce((s, p) => s + Number(p.valor), 0);
-              return (
-                <>
-                  <div style={{ marginTop: 20, padding: '14px 16px', background: '#FAFAFA', borderRadius: 10, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: '#888' }}>Total do tratamento</span>
-                    <span style={{ fontSize: 16, fontWeight: 500 }}>R$ {total.toFixed(2).replace('.', ',')}</span>
-                  </div>
-                  <div style={{ marginTop: 8, padding: '14px 16px', background: '#F0FBF6', borderRadius: 10, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: '#27AE60' }}>Já realizado</span>
-                    <span style={{ fontSize: 16, fontWeight: 500, color: '#27AE60' }}>R$ {realizado.toFixed(2).replace('.', ',')}</span>
-                  </div>
-                </>
-              );
-            })()}
-          </Card>
-
-          {/* Modal plano */}
-          {modalPlano && (
-            <div style={m.overlay} onClick={() => setModalPlano(false)}>
-              <div style={m.modal} onClick={e => e.stopPropagation()}>
-                <div style={m.header}>
-                  <span style={m.title}>{editPlanoId ? 'Editar item' : 'Novo item do plano'}</span>
-                  <button style={m.closeBtn} onClick={() => setModalPlano(false)}>✕</button>
-                </div>
-                <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={s.label}>Procedimento *</label>
-                    <select
-                      value={formPlano.procedimento}
-                      onChange={e => {
-                        const nome = e.target.value;
-                        const proc = procedimentosCadastrados.find(p => p.nome === nome);
-                        setFormPlano({ ...formPlano, procedimento: nome, valor: proc ? String(proc.preco) : formPlano.valor });
-                      }}
-                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }}
-                      autoFocus
-                    >
-                      <option value="">Selecione um procedimento</option>
-                      {procedimentosCadastrados.map(p => (
-                        <option key={p.id} value={p.nome}>{p.nome} — R$ {Number(p.preco).toFixed(2).replace('.', ',')}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={s.label}>Valor (R$)</label>
-                    <input type="number" min="0" step="0.01" value={formPlano.valor} onChange={e => setFormPlano({ ...formPlano, valor: e.target.value })}
-                      placeholder="0,00"
-                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
-                  </div>
-                  <div>
-                    <label style={s.label}>Status</label>
-                    <select value={formPlano.status} onChange={e => setFormPlano({ ...formPlano, status: e.target.value })}
-                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }}>
-                      <option value="pendente">Pendente</option>
-                      <option value="feito">Feito</option>
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                  <div style={s.modalFooter}>
                     <Button variant="ghost" onClick={() => setModalPlano(false)} style={{ flex: 1 }}>Cancelar</Button>
                     <Button onClick={handleSalvarPlano} disabled={salvandoPlano} style={{ flex: 1 }}>
                       {salvandoPlano ? 'Salvando...' : editPlanoId ? 'Salvar' : 'Adicionar'}
                     </Button>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
+                </ModalShell>
+              )}
 
-          {/* Modal recebimento */}
-          {modalRecebimento && (
-            <div style={m.overlay} onClick={() => setModalRecebimento(null)}>
-              <div style={{ ...m.modal, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-                <div style={m.header}>
-                  <span style={m.title}>Registrar recebimento</span>
-                  <button style={m.close} onClick={() => setModalRecebimento(null)}>✕</button>
-                </div>
-                <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ background: '#F0FBF6', border: '1px solid #A8D5C2', borderRadius: 8, padding: '10px 14px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{modalRecebimento.procedimento}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#27AE60', marginTop: 4 }}>
-                      R$ {Number(modalRecebimento.valor).toFixed(2).replace('.', ',')}
+              {/* Modal recebimento */}
+              {modalRecebimento && (
+                <ModalShell titulo="Registrar recebimento" onClose={() => setModalRecebimento(null)} maxWidth={480}>
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ background: '#EAF5EF', border: '1px solid #A8D5C2', borderRadius: 8, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{modalRecebimento.procedimento}</div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#3E7D63', marginTop: 4 }}>
+                        R$ {Number(modalRecebimento.valor).toFixed(2).replace('.', ',')}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={m.label}>Forma de pagamento *</label>
+                      <select value={formRecebimento.forma_pagamento} onChange={e => setFormRecebimento({ ...formRecebimento, forma_pagamento: e.target.value })} style={m.input}>
+                        <option value="PIX">PIX</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Cartão de Débito">Cartão de Débito</option>
+                        <option value="Convênio">Convênio</option>
+                        <option value="Transferência">Transferência</option>
+                        <option value="Boleto">Boleto</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={m.label}>Data do recebimento *</label>
+                      <input type="date" value={formRecebimento.data_recebimento} onChange={e => setFormRecebimento({ ...formRecebimento, data_recebimento: e.target.value })} style={m.input} />
+                    </div>
+                    <div>
+                      <label style={m.label}>Observações</label>
+                      <textarea value={formRecebimento.observacoes} onChange={e => setFormRecebimento({ ...formRecebimento, observacoes: e.target.value })} placeholder="Ex: Pago em 2x no cartão..." style={{ ...m.input, minHeight: 70, resize: 'vertical' }} />
                     </div>
                   </div>
-                  <div>
-                    <label style={m.label}>Forma de pagamento *</label>
-                    <select value={formRecebimento.forma_pagamento}
-                      onChange={e => setFormRecebimento({ ...formRecebimento, forma_pagamento: e.target.value })}
-                      style={m.input}>
-                      <option value="PIX">PIX</option>
-                      <option value="Dinheiro">Dinheiro</option>
-                      <option value="Cartão de Crédito">Cartão de Crédito</option>
-                      <option value="Cartão de Débito">Cartão de Débito</option>
-                      <option value="Convênio">Convênio</option>
-                      <option value="Transferência">Transferência</option>
-                      <option value="Boleto">Boleto</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={m.label}>Data do recebimento *</label>
-                    <input type="date" value={formRecebimento.data_recebimento}
-                      onChange={e => setFormRecebimento({ ...formRecebimento, data_recebimento: e.target.value })}
-                      style={m.input} />
-                  </div>
-                  <div>
-                    <label style={m.label}>Observações</label>
-                    <textarea value={formRecebimento.observacoes}
-                      onChange={e => setFormRecebimento({ ...formRecebimento, observacoes: e.target.value })}
-                      placeholder="Ex: Pago em 2x no cartão..."
-                      style={{ ...m.input, minHeight: 70, resize: 'vertical', fontFamily: "'DM Sans', sans-serif" }} />
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                  <div style={s.modalFooter}>
                     <Button variant="ghost" onClick={() => setModalRecebimento(null)} style={{ flex: 1 }}>Cancelar</Button>
                     <Button onClick={handleRegistrarRecebimento} disabled={salvandoRecebimento} style={{ flex: 1 }}>
                       {salvandoRecebimento ? 'Registrando...' : 'Confirmar recebimento'}
                     </Button>
                   </div>
-                </div>
-              </div>
-            </div>
+                </ModalShell>
+              )}
+            </>
           )}
-        </>
-      )}
 
-      {activeTab === 'Evolução clínica' && (
-        <>
-          <Card>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>Evolução clínica</span>
-              <button onClick={() => abrirModalEvolucao()} style={{ background: 'none', border: 'none', color: '#A8D5C2', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Nova evolução</button>
-            </div>
-            {evolucoes.length === 0 ? (
-              <p style={{ color: '#AAA', fontSize: 13, padding: '8px 0' }}>Nenhuma evolução registrada. Clique em "+ Nova evolução" para adicionar.</p>
-            ) : (
-              <div style={{ marginTop: 4 }}>
-                {evolucoes.map(e => (
-                  <div key={e.id} style={s.evoItem}>
-                    <div style={s.evoDate}>{new Date(e.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{e.procedimento}</div>
-                      <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{e.descricao}</div>
-                      {e.dentista && <div style={{ fontSize: 11, color: '#AAA', marginTop: 4 }}>{e.dentista}</div>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      <button style={s.acaoBotao} onClick={() => abrirModalEvolucao(e)}>Editar</button>
-                      <button style={{ ...s.acaoBotao, color: '#E53E3E' }} onClick={() => handleExcluirEvolucao(e.id)}>Excluir</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* Modal evolução */}
-          {modalEvolucao && (
-            <div style={m.overlay} onClick={() => setModalEvolucao(false)}>
-              <div style={m.modal} onClick={e => e.stopPropagation()}>
-                <div style={m.header}>
-                  <span style={m.title}>{editEvolucaoId ? 'Editar evolução' : 'Nova evolução'}</span>
-                  <button style={m.closeBtn} onClick={() => setModalEvolucao(false)}>✕</button>
+          {/* ──────── Evolução clínica ──────── */}
+          {activeTab === 'Evolução clínica' && (
+            <>
+              <Card style={{ overflow: 'visible' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Evolução clínica</span>
+                  <button onClick={() => abrirModalEvolucao()} style={s.editBtn}>
+                    <Plus size={12} /> Nova evolução
+                  </button>
                 </div>
-                <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <label style={s.label}>Procedimento *</label>
-                    <select value={formEvolucao.procedimento}
-                      onChange={e => setFormEvolucao({ ...formEvolucao, procedimento: e.target.value })}
-                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }}
-                      autoFocus>
-                      <option value="">Selecione um procedimento</option>
-                      {procedimentosCadastrados.map(p => (
-                        <option key={p.id} value={p.nome}>{p.nome}</option>
-                      ))}
-                      <option value="Outro">Outro</option>
-                    </select>
+                {carregandoPaciente ? (
+                  <div style={s.shimmerBlock} />
+                ) : evolucoes.length === 0 ? (
+                  <EmptyState
+                    Icon={Activity}
+                    title="Nenhuma evolução registrada"
+                    subtitle="Registre procedimentos realizados com data, descrição clínica e responsável."
+                    ctaIcon={Plus}
+                    cta="Registrar evolução"
+                    onCta={() => abrirModalEvolucao()}
+                  />
+                ) : (
+                  <div style={{ marginTop: 4 }}>
+                    {evolucoes.map(e => (
+                      <div key={e.id} style={s.evoItem}>
+                        <div style={s.evoDate}>{new Date(e.criado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{e.procedimento}</div>
+                          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{e.descricao}</div>
+                          {e.dentista && <div style={{ fontSize: 11, color: '#AAA', marginTop: 4 }}>{e.dentista}</div>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, position: 'relative' }}>
+                          <button onClick={() => setMenuEvolucaoId(menuEvolucaoId === e.id ? null : e.id)} style={{ ...s.iconBtn, color: '#888' }} aria-label="Mais ações">
+                            <MoreVertical size={14} />
+                          </button>
+                          {menuEvolucaoId === e.id && (
+                            <>
+                              <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setMenuEvolucaoId(null)} />
+                              <div style={s.dropdown}>
+                                <button style={s.dropdownItem} onClick={() => { setMenuEvolucaoId(null); abrirModalEvolucao(e); }}>
+                                  <Edit3 size={12} /> Editar
+                                </button>
+                                <button style={{ ...s.dropdownItem, color: '#C5585A' }} onClick={() => { setMenuEvolucaoId(null); handleExcluirEvolucao(e.id); }}>
+                                  <Trash2 size={12} /> Excluir
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <label style={s.label}>Descrição / Observações *</label>
-                    <textarea value={formEvolucao.descricao}
-                      onChange={e => setFormEvolucao({ ...formEvolucao, descricao: e.target.value })}
-                      placeholder="Descreva o procedimento realizado, observações clínicas..."
-                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', minHeight: 90, resize: 'vertical' }} />
+                )}
+              </Card>
+
+              {/* Modal evolução */}
+              {modalEvolucao && (
+                <ModalShell titulo={editEvolucaoId ? 'Editar evolução' : 'Nova evolução'} onClose={() => setModalEvolucao(false)} maxWidth={500}>
+                  <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={m.label}>Procedimento *</label>
+                      <select value={formEvolucao.procedimento} onChange={e => setFormEvolucao({ ...formEvolucao, procedimento: e.target.value })} style={m.input} autoFocus>
+                        <option value="">Selecione um procedimento</option>
+                        {procedimentosCadastrados.map(p => (
+                          <option key={p.id} value={p.nome}>{p.nome}</option>
+                        ))}
+                        <option value="Outro">Outro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={m.label}>Descrição / Observações *</label>
+                      <textarea value={formEvolucao.descricao} onChange={e => setFormEvolucao({ ...formEvolucao, descricao: e.target.value })} placeholder="Descreva o procedimento realizado, observações clínicas..." style={{ ...m.input, minHeight: 90, resize: 'vertical' }} />
+                    </div>
+                    <div>
+                      <label style={m.label}>Dentista responsável</label>
+                      <input
+                        value={formEvolucao.dentista || nomeDentistaLogado}
+                        readOnly
+                        style={{ ...m.input, background: '#F8F8F8', color: '#666', cursor: 'not-allowed' }}
+                      />
+                      <span style={{ fontSize: 11, color: '#AAA', marginTop: 4, display: 'block' }}>Preenchido automaticamente com o usuário logado</span>
+                    </div>
                   </div>
-                  <div>
-                    <label style={s.label}>Dentista responsável</label>
-                    <input value={formEvolucao.dentista}
-                      onChange={e => setFormEvolucao({ ...formEvolucao, dentista: e.target.value })}
-                      placeholder="Ex: Dr. Silva"
-                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', background: '#F8F8F8', color: '#555' }} />
-                    <span style={{ fontSize: 11, color: '#AAA', marginTop: 4, display: 'block' }}>Preenchido automaticamente com o usuário logado</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                  <div style={s.modalFooter}>
                     <Button variant="ghost" onClick={() => setModalEvolucao(false)} style={{ flex: 1 }}>Cancelar</Button>
                     <Button onClick={handleSalvarEvolucao} disabled={salvandoEvolucao} style={{ flex: 1 }}>
                       {salvandoEvolucao ? 'Salvando...' : editEvolucaoId ? 'Salvar' : 'Registrar'}
                     </Button>
                   </div>
-                </div>
-              </div>
-            </div>
+                </ModalShell>
+              )}
+            </>
           )}
-        </>
-      )}
 
-      {activeTab === 'Documentos' && (
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontWeight: 600, fontSize: 15 }}>Documentos</span>
-            <label style={{ cursor: 'pointer', background: '#1A1A1A', color: '#fff', padding: '7px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500 }}>
-              + Enviar documento
-              <input type="file" style={{ display: 'none' }} onChange={handleSelecionarArquivo} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
-            </label>
-          </div>
-          {documentos.length === 0 ? (
-            <p style={{ color: '#AAA', fontSize: 13, padding: '8px 0' }}>Nenhum documento enviado. Clique em "+ Enviar documento" para adicionar.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {documentos.map(doc => (
-                <div key={doc.id} style={s.docItem}>
-                  <div style={s.docIcon}>{doc.tipo === 'Imagem' ? '🖼' : '📄'}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{doc.nome}</div>
-                    {doc.descricao && <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{doc.descricao}</div>}
-                    <div style={{ fontSize: 11, color: '#AAA', marginTop: 2 }}>
-                      {new Date(doc.criado_em).toLocaleDateString('pt-BR')} · {doc.tamanho}
+          {/* ──────── Documentos ──────── */}
+          {activeTab === 'Documentos' && (
+            <Card>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16 }}>Documentos</span>
+                <label style={{ cursor: 'pointer', background: '#1A1A1A', color: '#fff', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Upload size={13} /> Enviar documento
+                  <input type="file" style={{ display: 'none' }} onChange={handleSelecionarArquivo} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" />
+                </label>
+              </div>
+              {carregandoPaciente ? (
+                <div style={s.shimmerBlock} />
+              ) : documentos.length === 0 ? (
+                <EmptyState
+                  Icon={FolderOpen}
+                  title="Nenhum documento enviado"
+                  subtitle="Envie radiografias, laudos, receitas e atestados ligados ao paciente."
+                  ctaIcon={Upload}
+                  cta="Enviar documento"
+                  onCta={() => document.querySelector('input[type=file]').click()}
+                />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {documentos.map(doc => (
+                    <div key={doc.id} style={s.docItem}>
+                      {doc.tipo === 'Imagem' && thumbnails[doc.id] ? (
+                        <div
+                          style={{ ...s.docThumb, backgroundImage: `url(${thumbnails[doc.id]})` }}
+                          onClick={() => handleBaixarDocumento(doc)}
+                          title="Abrir imagem"
+                        />
+                      ) : (
+                        <div style={s.docIcon}>
+                          {doc.tipo === 'Imagem' ? <ImageIcon size={20} /> : <FileText size={20} />}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{doc.nome}</div>
+                        {doc.descricao && <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{doc.descricao}</div>}
+                        <div style={{ fontSize: 11, color: '#AAA', marginTop: 2 }}>
+                          {new Date(doc.criado_em).toLocaleDateString('pt-BR')} · {doc.tamanho}
+                        </div>
+                      </div>
+                      <Badge color="gray">{doc.tipo}</Badge>
+                      <button style={s.docBtn} onClick={() => handleBaixarDocumento(doc)}>
+                        <Download size={12} /> Baixar
+                      </button>
+                      <button style={{ ...s.docBtn, color: '#C5585A' }} onClick={() => handleExcluirDocumento(doc)}>
+                        <Trash2 size={12} /> Excluir
+                      </button>
                     </div>
-                  </div>
-                  <Badge color="gray">{doc.tipo}</Badge>
-                  <button style={s.docBtn} onClick={() => handleBaixarDocumento(doc)}>Baixar</button>
-                  <button style={{ ...s.docBtn, color: '#E53E3E' }} onClick={() => handleExcluirDocumento(doc)}>Excluir</button>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </Card>
           )}
-        </Card>
-      )}
 
-      {modalDoc && (
-        <div style={s.modalOverlay} onClick={() => setModalDoc(null)}>
-          <div style={s.modalBox} onClick={e => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <span style={s.modalTitle}>Enviar documento</span>
-              <button style={s.modalClose} onClick={() => setModalDoc(null)}>✕</button>
-            </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={s.label}>Nome do documento *</label>
-                <input value={formDoc.nome} onChange={e => setFormDoc({ ...formDoc, nome: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' }} />
+          {modalDoc && (
+            <ModalShell titulo="Enviar documento" onClose={() => setModalDoc(null)} maxWidth={500}>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={m.label}>Nome do documento *</label>
+                  <input value={formDoc.nome} onChange={e => setFormDoc({ ...formDoc, nome: e.target.value })} style={m.input} />
+                </div>
+                <div>
+                  <label style={m.label}>Descrição</label>
+                  <textarea value={formDoc.descricao} onChange={e => setFormDoc({ ...formDoc, descricao: e.target.value })} placeholder="Ex: Radiografia panorâmica inicial, laudo de exame..." style={{ ...m.input, minHeight: 80, resize: 'vertical' }} />
+                </div>
+                <div style={{ fontSize: 12, color: '#AAA', background: '#F8F8F8', borderRadius: 8, padding: '10px 12px' }}>
+                  <div>{modalDoc.arquivo.name} · {modalDoc.tamanhoOriginal} · {modalDoc.tipo}</div>
+                  {modalDoc.tipo === 'Imagem' && (
+                    <div style={{ color: '#3E7D63', marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Check size={12} strokeWidth={2.5} /> será comprimida automaticamente
+                    </div>
+                  )}
+                </div>
               </div>
-              <div>
-                <label style={s.label}>Descrição</label>
-                <textarea value={formDoc.descricao} onChange={e => setFormDoc({ ...formDoc, descricao: e.target.value })}
-                  placeholder="Ex: Radiografia panorâmica inicial, laudo de exame..."
-                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E8E8E8', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box', minHeight: 80, resize: 'vertical' }} />
-              </div>
-              <div style={{ fontSize: 12, color: '#AAA', background: '#F8F8F8', borderRadius: 8, padding: '8px 12px' }}>
-                <span>{modalDoc.arquivo.name} · {modalDoc.tamanhoOriginal} · {modalDoc.tipo}</span>
-                {modalDoc.tipo === 'Imagem' && (
-                  <span style={{ color: '#27AE60', marginLeft: 8 }}>✓ será comprimida automaticamente</span>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+              <div style={s.modalFooter}>
                 <Button variant="ghost" onClick={() => setModalDoc(null)} style={{ flex: 1 }}>Cancelar</Button>
                 <Button onClick={handleUploadDocumento} disabled={uploadando} style={{ flex: 1 }}>
                   {uploadando ? 'Enviando...' : 'Enviar'}
                 </Button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            </ModalShell>
+          )}
 
-      <ToothModal tooth={selectedTooth} onSelect={setToothStatus} onClose={() => setSelectedTooth(null)} />
+          <ToothStatusPopover tooth={selectedTooth} onSelect={setToothStatus} onClose={() => setSelectedTooth(null)} />
         </>
       ) : (
         <Card>
-          <CardTitle>Selecione um paciente</CardTitle>
-          <p style={{ fontSize: 13, color: '#777', marginTop: 10 }}>
-            Para abrir o prontuário, selecione um paciente na busca acima ou clique em "Prontuário" na lista de pacientes.
-          </p>
+          <EmptyState
+            Icon={UserPlus}
+            title="Selecione um paciente"
+            subtitle='Use a busca acima ou clique em "Prontuário" na lista de pacientes para abrir a ficha clínica.'
+            ctaIcon={Search}
+            cta="Ir para pacientes"
+            onCta={() => router.push('/pacientes')}
+          />
         </Card>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ ...s.toast, background: toast.type === 'error' ? '#2B1D1D' : '#1A2B23' }}>
+          {toast.type === 'error'
+            ? <XCircle size={16} color="#E57373" />
+            : <CheckCircle2 size={16} color="#81C995" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Confirm modal */}
+      {confirmacao && (
+        <ModalShell titulo="Confirmar ação" onClose={confirmacao.onCancel} maxWidth={420}>
+          <div style={{ padding: '22px 24px 8px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FDF0E6', color: '#A55A3A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <AlertTriangle size={20} />
+            </div>
+            <div style={{ fontSize: 14, color: '#333', paddingTop: 8, lineHeight: 1.5 }}>{confirmacao.msg}</div>
+          </div>
+          <div style={s.modalFooter}>
+            <Button variant="ghost" onClick={confirmacao.onCancel} style={{ flex: 1 }}>Cancelar</Button>
+            <Button onClick={confirmacao.onConfirm} style={{ flex: 1, background: '#C5585A', color: '#fff' }}>Confirmar</Button>
+          </div>
+        </ModalShell>
       )}
     </div>
   );
 }
 
+// ─────────────────────────────────────────────────────────
+// Empty state reutilizável
+// ─────────────────────────────────────────────────────────
+function EmptyState({ Icon, title, subtitle, cta, ctaIcon: CtaIcon, onCta }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px', textAlign: 'center' }}>
+      <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#F5F5F5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', marginBottom: 14 }}>
+        <Icon size={26} strokeWidth={1.8} />
+      </div>
+      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 16, color: '#1A1A1A', marginBottom: 4 }}>{title}</div>
+      {subtitle && <div style={{ fontSize: 13, color: '#888', maxWidth: 360, lineHeight: 1.5, marginBottom: cta ? 16 : 0 }}>{subtitle}</div>}
+      {cta && onCta && (
+        <button
+          onClick={onCta}
+          style={{ marginTop: 4, background: '#1A1A1A', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: "'DM Sans', sans-serif" }}
+        >
+          {CtaIcon && <CtaIcon size={13} />} {cta}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Estilos
+// ─────────────────────────────────────────────────────────
 const s = {
-  main: { flex: 1, padding: 32, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 },
+  main: { flex: 1, padding: 32, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20, background: '#F8F8F8' },
   patientCard: { background: '#fff', borderRadius: 12, border: '1.5px solid #EFEFEF', padding: 24, display: 'flex', alignItems: 'center', gap: 20 },
-  avatar: { width: 56, height: 56, background: '#A8D5C2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Serif Display', serif", fontSize: 22, color: '#1A1A1A', flexShrink: 0 },
+  avatar: { width: 56, height: 56, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 600, flexShrink: 0 },
   patientName: { fontFamily: "'DM Serif Display', serif", fontSize: 22, letterSpacing: '-0.3px' },
   patientMeta: { display: 'flex', gap: 16, marginTop: 6, flexWrap: 'wrap' },
+  tabsWrap: { position: 'sticky', top: 0, zIndex: 5, background: '#F8F8F8', paddingTop: 4, paddingBottom: 4 },
   tabs: { display: 'flex', background: '#fff', borderRadius: 12, border: '1.5px solid #EFEFEF', overflow: 'hidden' },
-  tab: { padding: '13px 20px', fontSize: 13, cursor: 'pointer', color: '#888', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: 'transparent', transition: 'all 0.15s', whiteSpace: 'nowrap' },
-  tabActive: { color: '#1A1A1A', fontWeight: 500, borderBottomColor: '#1A1A1A' },
+  tab: { padding: '13px 18px', fontSize: 13, cursor: 'pointer', color: '#888', borderBottomWidth: 2, borderBottomStyle: 'solid', borderBottomColor: 'transparent', transition: 'all 0.15s', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 7 },
+  tabActive: { color: '#1A1A1A', fontWeight: 500, borderBottomColor: '#1A1A1A', background: '#FAFAFA' },
   legend: { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid #F5F5F5' },
   planItem: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, background: '#FAFAFA' },
   planCheck: { width: 18, height: 18, borderRadius: '50%', borderWidth: '1.5px', borderStyle: 'solid', borderColor: '#DDD', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  planCheckDone: { background: '#27AE60', borderColor: '#27AE60' },
-  acaoBotao: { padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 6, cursor: 'pointer', background: '#F0F0F0', color: '#1A1A1A', fontWeight: 500 },
+  planCheckDone: { background: '#3E7D63', borderColor: '#3E7D63' },
+  iconBtn: { width: 28, height: 28, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  dropdown: { position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '1.5px solid #EFEFEF', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.08)', zIndex: 11, minWidth: 140, overflow: 'hidden', animation: 'slideUp 0.12s ease-out' },
+  dropdownItem: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 12, color: '#333', cursor: 'pointer', background: 'transparent', border: 'none', width: '100%', textAlign: 'left', fontFamily: "'DM Sans', sans-serif" },
   evoItem: { display: 'flex', gap: 14, padding: '14px 0', borderBottom: '1px solid #F5F5F5' },
   evoDate: { fontSize: 11, color: '#AAA', minWidth: 80, paddingTop: 2 },
-  editBtn: { background: 'none', border: '1.5px solid #E8E8E8', borderRadius: 8, padding: '6px 14px', fontSize: 12, cursor: 'pointer', color: '#555', fontFamily: "'DM Sans', sans-serif" },
+  editBtn: { background: 'none', border: '1.5px solid #E8E8E8', borderRadius: 8, padding: '6px 14px', fontSize: 12, cursor: 'pointer', color: '#555', fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 6 },
   anamneseGrid: { display: 'flex', flexDirection: 'column', gap: 14, marginTop: 4 },
   anamneseItem: { display: 'grid', gridTemplateColumns: '180px 1fr', gap: 12, paddingBottom: 14, borderBottom: '1px solid #F5F5F5' },
   anamneseLabel: { fontSize: 11, fontWeight: 500, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', paddingTop: 1 },
   anamneseValue: { fontSize: 13, color: '#333', lineHeight: 1.5 },
-  condTag: { padding: '6px 12px', borderRadius: 20, border: '1.5px solid #EFEFEF', fontSize: 12, color: '#AAA', display: 'flex', alignItems: 'center', gap: 5 },
-  condTagActive: { background: '#F0FBF6', border: '1.5px solid #A8D5C2', color: '#27AE60' },
+  condTag: { padding: '6px 12px', borderRadius: 20, border: '1.5px solid #EFEFEF', fontSize: 12, color: '#AAA', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  condTagActive: { background: '#EAF5EF', border: '1.5px solid #A8D5C2', color: '#3E7D63' },
   docItem: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, background: '#FAFAFA' },
-  docIcon: { fontSize: 22, width: 36, textAlign: 'center' },
-  docBtn: { padding: '6px 14px', border: '1.5px solid #EFEFEF', borderRadius: 8, background: '#fff', fontSize: 12, color: '#555', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modalBox: { background: '#fff', borderRadius: 12, width: '100%', maxWidth: 460, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #F0F0F0' },
-  modalTitle: { fontFamily: "'DM Serif Display', serif", fontSize: 17 },
-  modalClose: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#AAA', lineHeight: 1 },
+  docIcon: { width: 44, height: 44, background: '#F0F0F0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', flexShrink: 0 },
+  docThumb: { width: 44, height: 44, borderRadius: 8, backgroundSize: 'cover', backgroundPosition: 'center', cursor: 'pointer', flexShrink: 0, border: '1px solid #EFEFEF' },
+  docBtn: { padding: '6px 12px', border: '1.5px solid #EFEFEF', borderRadius: 8, background: '#fff', fontSize: 12, color: '#555', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", display: 'inline-flex', alignItems: 'center', gap: 5 },
+  modalFooter: { display: 'flex', gap: 12, padding: '14px 24px 20px', borderTop: '1px solid #F5F5F5', background: '#FAFAFA' },
+  shimmerBlock: { height: 200, borderRadius: 10, background: 'linear-gradient(90deg, #F5F5F5 0%, #FAFAFA 50%, #F5F5F5 100%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite linear' },
+  toast: { position: 'fixed', bottom: 32, right: 32, background: '#1A2B23', color: '#fff', padding: '12px 18px', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, zIndex: 1100, fontFamily: "'DM Sans', sans-serif", animation: 'slideUp 0.2s ease-out' },
 };
