@@ -15,10 +15,20 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { paciente_nome, paciente_fone, data, hora, clinica_id } = body;
+    const { paciente_nome, paciente_fone, hora, clinica_id } = body;
+    let { data } = body;
 
     if (!paciente_nome || !data || !hora) {
       return NextResponse.json({ error: 'Campos obrigatórios: paciente_nome, data, hora' }, { status: 400 });
+    }
+
+    // Normalizar data DD/MM/YYYY ou DD/MM/YY → YYYY-MM-DD (Supabase espera ISO)
+    if (data.includes('/')) {
+      const partes = data.split('/');
+      if (partes.length === 3) {
+        const ano = partes[2].length === 2 ? `20${partes[2]}` : partes[2];
+        data = `${ano}-${partes[1]}-${partes[0]}`;
+      }
     }
 
     // Verificar se horário ainda está disponível
