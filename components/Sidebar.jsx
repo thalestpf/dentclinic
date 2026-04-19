@@ -175,14 +175,11 @@ export default function Sidebar() {
 
   const carregarClinica = async (clinicaId) => {
     try {
-      const { data, error } = await supabase
-        .from('clinicas')
-        .select('nome')
-        .eq('id', clinicaId)
-        .single();
-
-      if (error) throw error;
-      if (data) setClinicaName(data.nome);
+      const res = await fetch('/api/clinica');
+      if (!res.ok) return;
+      const clinicas = await res.json();
+      const clinica = Array.isArray(clinicas) ? clinicas.find(c => c.id === clinicaId) : null;
+      if (clinica?.nome) setClinicaName(clinica.nome);
     } catch (error) {
       console.error('Erro ao carregar clínica:', error);
     }
