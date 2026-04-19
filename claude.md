@@ -83,27 +83,22 @@ components/               → Componentes reutilizáveis
 
 ## Módulos & Rotas
 
-### 🟢 PRONTO (Com CRUD + localStorage)
+### 🟢 PRONTO (com dados reais Supabase) — todos os módulos principais
 | Rota | Função | Status |
 |---|---|---|
-| `/agenda` | Agendamentos da semana | ✅ CREATE/READ/UPDATE/DELETE |
-| `/pacientes` | Lista e cadastro de pacientes | ✅ CREATE/READ/UPDATE/DELETE |
-| `/orcamento` | Orçamentos com cálculo automático | ✅ CREATE/READ/UPDATE/DELETE |
-| `/precos` | Cadastro de procedimentos | ✅ CREATE/READ/UPDATE/DELETE |
-| `/login` | Autenticação com seleção de perfil | ✅ Roles dinâmicos |
+| `/dashboard` | KPIs + próxima consulta + gráfico semanal | ✅ Supabase, filtrado por `clinica_id` |
+| `/agenda` | Calendário Semana/Dia multi-dentista + bloqueios | ✅ CRUD via `useAgendamento.ts` + `/api/bloqueios` |
+| `/prontuario` | Odontograma + Anamnese + Plano + Evolução + Documentos | ✅ CRUD Supabase, filtro `clinica_id` |
+| `/pacientes` | Lista e cadastro de pacientes | ✅ CRUD Supabase, filtro `clinica_id` |
+| `/orcamento` | Orçamentos com cálculo automático | ✅ CRUD Supabase, filtro `clinica_id` |
+| `/precos` | Cadastro de procedimentos/preços | ✅ CRUD Supabase (`procedimentos`), filtro `clinica_id` |
+| `/financeiro` | Lançamentos financeiros (receitas/despesas) | ✅ CRUD Supabase (`lancamentos`), filtro `clinica_id` |
+| `/estoque` | Controle de insumos e materiais | ✅ CRUD Supabase (`estoque` + `estoque_categorias`), filtro `clinica_id` |
+| `/login` | Autenticação via Supabase Auth | ✅ `signInWithPassword` + `user_roles` |
 
-### 🟢 PRONTO (com dados reais Supabase)
+### 🟡 PARCIALMENTE PRONTO
 | Rota | Função | Status |
 |---|---|---|
-| `/dashboard` | KPIs + próxima consulta + gráfico semanal | ✅ Consultas hoje, taxa de confirmação, consultas na semana, pacientes ativos, gráfico semana (Seg-Sex) — tudo via Supabase filtrado por `clinica_id` |
-| `/agenda` | Calendário Semana/Dia multi-dentista + bloqueios | ✅ CRUD completo via `useAgendamento.ts` + `/api/bloqueios` — **UI refinada**: paleta harmonizada, modais em gradiente escuro, chips filtro dentistas, botão Hoje, linha "agora", altura do bloco pela duração, KPI cards padrão Dashboard |
-| `/prontuario` | Odontograma + Anamnese + Plano + Evolução + Documentos | ✅ CRUD Supabase com filtro `clinica_id` em todas as queries — **UI refinada**: tabs sticky com ícones lucide, modais dark gradient, kebab menu, empty states, thumbnails de imagens, toast + modal de confirmação (sem `alert`/`confirm`), paleta harmonizada no odontograma, avatar com `iniciaisNome`. Odontograma persistido em memória da sessão (tabela futura) |
-
-### 🟡 PARCIALMENTE PRONTO (Interface OK, dados mock)
-| Rota | Função | Status |
-|---|---|---|
-| `/financeiro` | Contas a pagar/receber | Interface pronta, dados estáticos |
-| `/estoque` | Controle de materiais | Interface pronta, sem CRUD |
 | `/configuracoes` | Usuários, clínica, procedimentos | Parcial, abas prontas |
 
 ### 🟢 PRONTO (Super Admin)
@@ -132,9 +127,10 @@ components/               → Componentes reutilizáveis
 | `recebimentos` | ✅ Supabase (`recebimentos`) — histórico de pagamentos gerado pelo prontuário |
 | `procedimentos` | ✅ Supabase (`procedimentos`) — lista de procedimentos ativos por clínica |
 | Odontograma | ⏳ Memória da sessão (tabela `odontograma` planejada para persistência) |
-| `orcamentos` | ⏳ localStorage (`orcamentos`) |
-| `precos` | ⏳ localStorage (`precos`) |
-| `estoque` | ⏳ localStorage (sem CRUD) |
+| `orcamentos` | ✅ Supabase (`orcamentos`) filtrado por `clinica_id` |
+| `precos` | ✅ Supabase (`procedimentos`) filtrado por `clinica_id` |
+| `estoque` | ✅ Supabase (`estoque` + `estoque_categorias`) filtrado por `clinica_id` |
+| `lancamentos` | ✅ Supabase (`lancamentos`) filtrado por `clinica_id` |
 | Sessão cliente | localStorage (`dentclinic_*`) |
 | Bloqueios de agenda | ✅ Supabase via `/api/bloqueios` (dia_semana / data / horario) |
 | Config WhatsApp | localStorage (`integracao_whatsapp`) |
@@ -488,25 +484,25 @@ GOOGLE_GENAI_API_KEY=
 ### ✅ IMPLEMENTADO
 - [x] **Agenda** — CRUD completo no Supabase via `useAgendamento.ts`, vista Semana/Dia, multi-dentista + UI refinada (paleta harmonizada, chips filtro, modais dark, linha "agora", botão Hoje, altura pela duração, KPI cards)
 - [x] **Bloqueios de agenda** — API `/api/bloqueios` (dia_semana / data / horario) no Supabase
-- [x] **Autenticação** — `/api/auth/login` + tabela `usuarios` + bcrypt
+- [x] **Autenticação** — `supabase.auth.signInWithPassword` + tabela `user_roles` (role, clinica_id, nome)
 - [x] **Super Admin - Clínicas** — CRUD no Supabase, `/api/clinica`
 - [x] **Super Admin - Dentistas** — CRUD no Supabase, filtrado por `clinica_id`
 - [x] **Super Admin - Integrações** — WhatsApp + n8n + templates + automações
 - [x] **Pacientes** — CRUD no Supabase + UI refinada (kebab, chips, modal em seções)
 - [x] **Dashboard** — Dados reais do Supabase (KPIs, próxima consulta, gráfico semanal Seg-Sex, pacientes ativos)
-- [x] **Prontuário** — 5 abas (Odontograma, Anamnese, Plano, Evolução, Documentos) no Supabase com filtro `clinica_id`, UI refinada (tabs sticky com ícones, modais dark, kebab, empty states, thumbnails, toast + confirm modal)
-- [x] **API Routes n8n** — agendamento, dentistas, clínica, disponibilidade, sessão
-
-### 🔴 CRÍTICO
-- [ ] Migrar Orçamentos de localStorage para Supabase
-- [ ] Migrar Preços/Procedimentos de localStorage para Supabase
+- [x] **Prontuário** — 5 abas (Odontograma, Anamnese, Plano, Evolução, Documentos) no Supabase com filtro `clinica_id`
+- [x] **API Routes n8n** — agendamento, dentistas, clínica, disponibilidade, sessão (180 dias)
+- [x] **Orçamentos** — CRUD Supabase (`orcamentos`), filtro `clinica_id` em leitura e escrita
+- [x] **Preços/Procedimentos** — CRUD Supabase (`procedimentos`), filtro `clinica_id`, UI refinada
+- [x] **Financeiro** — CRUD Supabase (`lancamentos`), filtro `clinica_id`, calendário de vencimentos
+- [x] **Estoque** — CRUD Supabase (`estoque` + `estoque_categorias`), filtro `clinica_id`, movimentações
+- [x] **Sidebar** — `carregarClinica` usa `/api/clinica` (service_role) em vez de query direta — evita erro RLS
+- [x] **n8n Workflow** — corrigido `Tem Agendamento?` (verifica `paciente_nome` em vez de booleano), `bodyAgendamento` retorna `null` quando vazio
 
 ### 🟡 IMPORTANTE
-- [ ] Conectar Dashboard a Faturamento quando módulo financeiro existir
-- [ ] CRUD completo para Estoque (entrada/saída de materiais)
 - [ ] Criar tabela `odontograma` e persistir estado dos dentes por paciente (hoje só sessão)
 - [ ] Relatórios dinâmicos (Financeiro, Procedimentos por dentista)
-- [ ] Aplicar padrão visual refinado (kebab, chips, shimmer) em Orçamento, Preços
+- [ ] Configurações — CRUD completo de usuários e configuração da clínica
 
 ### 🟢 NICE-TO-HAVE
 - [ ] Tema escuro
@@ -525,9 +521,15 @@ GOOGLE_GENAI_API_KEY=
 
 - **Nunca criar arquivo sem necessidade** — preferir editar existentes
 
-- **Supabase é a fonte de verdade** para agendamentos, dentistas, pacientes, clínicas e usuários
-  - localStorage usado apenas para sessão (`dentclinic_*`) e dados ainda não migrados (orçamentos, preços, bloqueios)
-  - Queries via `supabase-client` direto no cliente, ou via API Routes com service_role quando necessário
+- **Supabase é a fonte de verdade** para todos os módulos de dados
+  - localStorage usado **somente para sessão**: `dentclinic_logged_in`, `dentclinic_role`, `dentclinic_name`, `dentclinic_clinica_id`, `clinica_id`
+  - Queries sensíveis (tabela `clinicas`) devem usar API Routes com `service_role` — **nunca** query direta do cliente (RLS bloqueia)
+  - Queries via `supabase-client` (anon key) para tabelas com RLS permissiva (agendamentos, pacientes, etc.)
+
+- **Hierarquia multi-tenant:** Super Admin → Clínicas → (Dentistas / Secretárias) → Pacientes/Dados
+  - Todo registro de dado clínico tem `clinica_id` — sempre filtrar por ele nas queries
+  - `user_roles` define `role` + `clinica_id` de cada usuário — é a fonte de verdade do perfil
+  - Ao cadastrar usuário pelo Super Admin: garantir que `user_roles.clinica_id` e `user_roles.nome` sejam preenchidos
 
 - **Inline styles only** — zero Tailwind, zero CSS modules
   - `const s = { ... }` no final de cada componente
@@ -586,10 +588,11 @@ GOOGLE_GENAI_API_KEY=
 | `app/hooks/useAgendamento.ts` | Hook TypeScript para CRUD de agendamentos no Supabase |
 | `lib/supabase-client.ts` | Cliente Supabase (anon key, uso no frontend) |
 | `app/api/clinica/route.js` | GET/PATCH clínicas via service_role |
-| `app/api/auth/login/route.js` | POST login — verifica senha bcrypt na tabela `usuarios` |
 | `app/(app)/pacientes/page.jsx` | Pacientes com CRUD (Supabase) |
-| `app/(app)/orcamento/page.jsx` | Orçamentos com cálculo + CRUD (localStorage) |
-| `app/(app)/precos/page.jsx` | Procedimentos com CRUD (localStorage) |
+| `app/(app)/orcamento/page.jsx` | Orçamentos com cálculo + CRUD (Supabase, filtro clinica_id) |
+| `app/(app)/precos/page.jsx` | Procedimentos com CRUD (Supabase, tabela `procedimentos`) |
+| `app/(app)/financeiro/page.jsx` | Lançamentos financeiros CRUD (Supabase, tabela `lancamentos`) |
+| `app/(app)/estoque/page.jsx` | Estoque CRUD + movimentações (Supabase, tabelas `estoque`/`estoque_categorias`) |
 | `.claude/memory/` | Documentação de contexto persistente |
 
 ---
@@ -597,8 +600,8 @@ GOOGLE_GENAI_API_KEY=
 ## Checklist de Pull Request
 
 - [ ] Código em português (variáveis, funções, comentários)
-- [ ] localStorage implementado (load em useEffect, save em handlers)
-- [ ] CRUD completo (CREATE/READ/UPDATE/DELETE) se nova tabela
+- [ ] CRUD completo via Supabase (CREATE/READ/UPDATE/DELETE) — sem localStorage para dados
+- [ ] Query de leitura filtra por `clinica_id` quando disponível
 - [ ] Modal/formulário com validação básica
 - [ ] Inline styles apenas (sem Tailwind)
 - [ ] Cores padronizadas usadas
