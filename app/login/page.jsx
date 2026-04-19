@@ -57,7 +57,10 @@ export default function Login() {
       localStorage.setItem('dentclinic_logged_in', '1');
       localStorage.setItem('dentclinic_role', role);
       localStorage.setItem('dentclinic_name', nome);
-      if (clinicaId) localStorage.setItem('clinica_id', clinicaId);
+      if (clinicaId) {
+        localStorage.setItem('clinica_id', clinicaId);
+        localStorage.setItem('dentclinic_clinica_id', clinicaId);
+      }
 
       showToast('Login realizado com sucesso!');
       setTimeout(() => router.push('/dashboard'), 800);

@@ -111,18 +111,26 @@ export default function Sidebar() {
         if (userData.role === 'super_admin') {
           setUserRole('Super Admin');
           setClinicaName('Todas as clínicas');
-          setModulosHabilitados(null); // super_admin não tem restrições
-        } else if (userData.role === 'secretaria') {
-          setUserRole('Secretária');
-          if (userData.clinica_id) {
-            carregarClinica(userData.clinica_id);
-            carregarPlanoClinica(userData.clinica_id);
-          }
+          setModulosHabilitados(null);
         } else {
-          setUserRole('Dentista');
-          if (userData.clinica_id) {
-            carregarClinica(userData.clinica_id);
-            carregarPlanoClinica(userData.clinica_id);
+          const roleLabel = userData.role === 'secretaria' ? 'Secretária' : 'Dentista';
+          setUserRole(roleLabel);
+
+          let clinicaId = userData.clinica_id;
+
+          // Fallback: buscar clinica_id na tabela dentistas se não veio de user_roles
+          if (!clinicaId) {
+            const { data: dentistaFallback } = await supabase
+              .from('dentistas')
+              .select('clinica_id')
+              .eq('email', userEmail)
+              .maybeSingle();
+            clinicaId = dentistaFallback?.clinica_id || localStorage.getItem('clinica_id') || localStorage.getItem('dentclinic_clinica_id');
+          }
+
+          if (clinicaId) {
+            carregarClinica(clinicaId);
+            carregarPlanoClinica(clinicaId);
           }
         }
       } else {
