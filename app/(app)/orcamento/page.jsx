@@ -60,10 +60,13 @@ export default function OrcamentoPage() {
   const carregarDados = async () => {
     setCarregando(true);
     try {
-      const [{ data: orcData }, { data: pacData }] = await Promise.all([
-        supabase.from('orcamentos').select('*').order('criado_em', { ascending: false }),
-        supabase.from('pacientes').select('id, nome').order('nome'),
-      ]);
+      const cId = localStorage.getItem('dentclinic_clinica_id');
+      let orcQuery = supabase.from('orcamentos').select('*').order('criado_em', { ascending: false });
+      if (cId) orcQuery = orcQuery.eq('clinica_id', cId);
+      let pacQuery = supabase.from('pacientes').select('id, nome').order('nome');
+      if (cId) pacQuery = pacQuery.eq('clinica_id', cId);
+
+      const [{ data: orcData }, { data: pacData }] = await Promise.all([orcQuery, pacQuery]);
       setOrcamentos(orcData || []);
       setPacientes(pacData || []);
 
